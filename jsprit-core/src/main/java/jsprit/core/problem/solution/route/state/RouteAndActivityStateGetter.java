@@ -32,4 +32,6 @@ public interface RouteAndActivityStateGetter {
 
     public <T> T getRouteState(VehicleRoute route, Vehicle vehicle, StateId stateId, Class<T> type);
 
+    <T> T getRunState(VehicleRoute route, int runNum, StateId stateId, Class<T> type, T defaultValue);
+
 }

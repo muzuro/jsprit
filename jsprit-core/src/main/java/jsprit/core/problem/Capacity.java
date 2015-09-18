@@ -255,6 +255,10 @@ public class Capacity {
         }
         return true;
     }
+    
+    public boolean isGreater(Capacity toCompare) {
+        return !isLessOrEqual(toCompare);
+    }
 
     @Override
     public String toString() {

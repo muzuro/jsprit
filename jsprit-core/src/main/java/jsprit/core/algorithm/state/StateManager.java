@@ -105,6 +105,8 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
     private Map<VehicleRoute, Object[]> route_state_map;
 
     private Map<VehicleRoute, Object[][]> vehicle_dependent_route_state_map;
+    
+    private Map<VehicleRoute, Object[][]> runStateMap; 
 
     private VehicleRoutingProblem vrp;
 
@@ -158,6 +160,7 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
 //        vehicle_dependent_route_states = new Object[nuActivities][nuVehicleTypeKeys][initialStateArrayLength];
         route_state_map = new HashMap<VehicleRoute, Object[]>();
         vehicle_dependent_route_state_map = new HashMap<VehicleRoute, Object[][]>();
+        runStateMap = new HashMap<VehicleRoute, Object[][]>();
     }
 
     private int getNuVehicleTypes(VehicleRoutingProblem vrp) {
@@ -321,6 +324,34 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
 //            throw getClassCastException(e,stateId,type.toString(),route_states[index_of_first_act][stateId.getIndex()].getClass().toString());
         }
         return state;
+    }
+    
+    @Override
+    public <T> T getRunState(VehicleRoute route, int runNum, StateId stateId, Class<T> type, T defaultValue) {
+        if (route.isEmpty()) return defaultValue;
+        if (runStateMap.containsKey(route)) {
+            Object[] runStates = runStateMap.get(route)[runNum];
+            T cast = type.cast(runStates[stateId.getIndex()]);
+            return cast == null ? defaultValue : cast;
+        }
+        return defaultValue;
+    }
+    
+    public <T> T putRunState(VehicleRoute route, int runNum, StateId stateId, T value) {
+        if (route.isEmpty() || value == null) {
+            return null;
+        }
+        T oldVal = null;
+        if (runStateMap.containsKey(route)) {
+            Object[] runStates = runStateMap.get(route)[runNum];
+            oldVal = (T) runStates[stateId.getIndex()];
+            runStates[stateId.getIndex()] = value;
+        } else {
+            Object[][] routeState = new Object[100][10];
+            runStateMap.put(route, routeState);
+            routeState[runNum][stateId.getIndex()] = value;
+        }
+        return oldVal;
     }
 
     /**
@@ -534,8 +565,16 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
     void addListener(RuinListener ruinListener) {
         ruinListeners.addListener(ruinListener);
     }
+    
+    void addRuinListener(RuinListener ruinListener) {
+        ruinListeners.addListener(ruinListener);
+    }
 
     void addListener(InsertionListener insertionListener) {
+        insertionListeners.addListener(insertionListener);
+    }
+    
+    void addInsertionListener(InsertionListener insertionListener) {
         insertionListeners.addListener(insertionListener);
     }
 
@@ -602,6 +641,12 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
             addActivityVisitor(new UpdateMaxCapacityUtilisationAtRoute(this));
         }
     }
+    
+    public void updateDestainationBaseLoadStates() {
+        UpdateDestinationBaseLoads updateDestinationBaseLoad = new UpdateDestinationBaseLoads(this);
+        addRuinListener(updateDestinationBaseLoad);
+        addInsertionListener(updateDestinationBaseLoad);
+    }
 
     /**
      * Updates time-window states.
@@ -624,4 +669,5 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
     public void addCoreUpdater() {
 
     }
+
 }

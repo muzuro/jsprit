@@ -19,10 +19,9 @@ package jsprit.core.problem.solution.route.activity;
 import jsprit.core.problem.AbstractActivity;
 import jsprit.core.problem.Capacity;
 import jsprit.core.problem.Location;
-import jsprit.core.problem.job.Pickup;
 import jsprit.core.problem.job.Service;
 
-public final class PickupService extends AbstractActivity implements PickupActivity {
+public class PickupService<S extends Service> extends AbstractActivity implements PickupActivity {
 
     private Service pickup;
 
@@ -30,16 +29,12 @@ public final class PickupService extends AbstractActivity implements PickupActiv
 
     private double depTime;
 
-    public PickupService(Pickup pickup) {
+    public PickupService(S pickup) {
         super();
         this.pickup = pickup;
     }
 
-    public PickupService(Service service) {
-        this.pickup = service;
-    }
-
-    private PickupService(PickupService pickupActivity) {
+    protected PickupService(PickupService pickupActivity) {
         this.pickup = pickupActivity.getJob();
         this.arrTime = pickupActivity.getArrTime();
         this.depTime = pickupActivity.getEndTime();

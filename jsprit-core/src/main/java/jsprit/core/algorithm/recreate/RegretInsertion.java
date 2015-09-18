@@ -23,6 +23,7 @@ import jsprit.core.problem.job.Job;
 import jsprit.core.problem.job.Service;
 import jsprit.core.problem.job.Shipment;
 import jsprit.core.problem.solution.route.VehicleRoute;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -226,10 +227,16 @@ public class RegretInsertion extends AbstractInsertionStrategy {
             List<Job> badJobList = new ArrayList<Job>();
             ScoredJob bestScoredJob = nextJob(routes, unassignedJobList, badJobList);
             if (bestScoredJob != null) {
+                String beforeInsert = bestScoredJob.getRoute().prettyPrintActivites();
                 if (bestScoredJob.isNewRoute()) {
                     routes.add(bestScoredJob.getRoute());
                 }
                 insertJob(bestScoredJob.getJob(), bestScoredJob.getInsertionData(), bestScoredJob.getRoute());
+                logger.debug("route {} inserted {} to position {}, after insert {}",
+                        beforeInsert,
+                        bestScoredJob.getJob().getId(),
+                        bestScoredJob.getInsertionData().getDeliveryInsertionIndex(),
+                        bestScoredJob.getRoute().prettyPrintActivites());
                 jobs.remove(bestScoredJob.getJob());
             }
             for (Job bad : badJobList) {
@@ -316,7 +323,7 @@ public class RegretInsertion extends AbstractInsertionStrategy {
         if (secondBest == null) { //either there is only one vehicle or there are more vehicles, but they cannot load unassignedJob
             //if only one vehicle, I want the job to be inserted with min iCosts
             //if there are more vehicles, I want this job to be prioritized since there are no alternatives
-            score = Integer.MAX_VALUE - best.getInsertionCost() + scoringFunction.score(best, unassignedJob);
+            score = Double.MAX_VALUE - best.getInsertionCost() + scoringFunction.score(best, unassignedJob);
         } else {
             score = (secondBest.getInsertionCost() - best.getInsertionCost()) + scoringFunction.score(best, unassignedJob);
         }

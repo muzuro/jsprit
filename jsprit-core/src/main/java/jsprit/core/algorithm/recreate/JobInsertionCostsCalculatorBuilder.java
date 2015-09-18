@@ -16,20 +16,26 @@
  ******************************************************************************/
 package jsprit.core.algorithm.recreate;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import jsprit.core.algorithm.listener.VehicleRoutingAlgorithmListeners.PrioritizedVRAListener;
 import jsprit.core.algorithm.recreate.listener.InsertionListener;
 import jsprit.core.problem.AbstractActivity;
 import jsprit.core.problem.JobActivityFactory;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.constraint.ConstraintManager;
-import jsprit.core.problem.job.*;
+import jsprit.core.problem.job.Base;
+import jsprit.core.problem.job.Delivery;
+import jsprit.core.problem.job.Destination;
+import jsprit.core.problem.job.Job;
+import jsprit.core.problem.job.Pickup;
+import jsprit.core.problem.job.Service;
+import jsprit.core.problem.job.Shipment;
 import jsprit.core.problem.misc.JobInsertionContext;
 import jsprit.core.problem.solution.route.activity.TourActivity;
 import jsprit.core.problem.solution.route.state.RouteAndActivityStateGetter;
 import jsprit.core.problem.vehicle.VehicleFleetManager;
-
-import java.util.ArrayList;
-import java.util.List;
 
 
 public class JobInsertionCostsCalculatorBuilder {
@@ -290,12 +296,18 @@ public class JobInsertionCostsCalculatorBuilder {
         shipmentInsertion.setJobActivityFactory(activityFactory);
         ServiceInsertionCalculator serviceInsertion = new ServiceInsertionCalculator(vrp.getTransportCosts(), actInsertionCalc, constraintManager);
         serviceInsertion.setJobActivityFactory(activityFactory);
+        DestinationInsertionCalculator destinationInsertion = new DestinationInsertionCalculator(vrp.getTransportCosts(),
+                actInsertionCalc, constraintManager, activityFactory);
+        BaseInsertionCalculator baseInsertion = new BaseInsertionCalculator(vrp.getTransportCosts(), constraintManager,
+                activityFactory);
 
         JobCalculatorSwitcher switcher = new JobCalculatorSwitcher();
         switcher.put(Shipment.class, shipmentInsertion);
         switcher.put(Service.class, serviceInsertion);
         switcher.put(Pickup.class, serviceInsertion);
         switcher.put(Delivery.class, serviceInsertion);
+        switcher.put(Destination.class, destinationInsertion);
+        switcher.put(Base.class, baseInsertion);
 
         CalculatorPlusListeners calculatorPlusListeners = new CalculatorPlusListeners(switcher);
         if (configLocal != null) {

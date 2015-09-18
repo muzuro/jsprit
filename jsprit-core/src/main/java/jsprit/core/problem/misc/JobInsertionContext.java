@@ -43,6 +43,16 @@ public class JobInsertionContext {
     private List<TourActivity> associatedActivities = new ArrayList<TourActivity>();
 
     private ActivityContext pickupContext;
+    
+    private DestinationBaseContext destinationBaseContext;
+
+    public DestinationBaseContext getDestinationBaseContext() {
+        return destinationBaseContext;
+    }
+
+    public void setDestinationBaseContext(DestinationBaseContext destinationBaseContext) {
+        this.destinationBaseContext = destinationBaseContext;
+    }
 
     /**
      * Returns the existing route where the .getJob() needs to be inserted in.

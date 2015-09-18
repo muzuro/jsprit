@@ -17,7 +17,9 @@
 package jsprit.core.problem.solution.route.activity;
 
 import jsprit.core.problem.AbstractActivity;
+import jsprit.core.problem.job.Base;
 import jsprit.core.problem.job.Delivery;
+import jsprit.core.problem.job.Destination;
 import jsprit.core.problem.job.Pickup;
 import jsprit.core.problem.job.Service;
 
@@ -30,9 +32,13 @@ public class DefaultTourActivityFactory implements TourActivityFactory {
             act = new PickupService((Pickup) service);
         } else if (service instanceof Delivery) {
             act = new DeliverService((Delivery) service);
+        } else if (service instanceof Destination) {
+            act = new DestinationService((Destination)service);
+        } else if (service instanceof Base) {
+            act = new BaseService((Base)service);
         } else {
             act = new PickupService(service);
-        }
+        }  
         return act;
     }
 

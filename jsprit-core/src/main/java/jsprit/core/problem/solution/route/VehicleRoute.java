@@ -461,5 +461,13 @@ public class VehicleRoute {
     public String toString() {
         return "[start=" + start + "][end=" + end + "][departureTime=" + start.getEndTime() + "][vehicle=" + vehicle + "][driver=" + driver + "][nuOfActs=" + tourActivities.getActivities().size() + "]";
     }
+    
+    public String prettyPrintActivites() {
+        List<String> strs = new ArrayList<String>();
+        for (TourActivity ta : getActivities()) {
+            strs.add(ta.getName());
+        }
+        return strs.toString();
+    }
 
 }
