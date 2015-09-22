@@ -21,7 +21,7 @@
 
     <groupId>jsprit</groupId>
     <artifactId>jsprit</artifactId>
-    <version>1.6.2-SNAPSHOT</version>
+    <version>1.6.2-tko</version>
 
     <packaging>pom</packaging>
 

@@ -232,11 +232,14 @@ public class RegretInsertion extends AbstractInsertionStrategy {
                     routes.add(bestScoredJob.getRoute());
                 }
                 insertJob(bestScoredJob.getJob(), bestScoredJob.getInsertionData(), bestScoredJob.getRoute());
-                logger.debug("route {} inserted {} to position {}, after insert {}",
-                        beforeInsert,
-                        bestScoredJob.getJob().getId(),
-                        bestScoredJob.getInsertionData().getDeliveryInsertionIndex(),
-                        bestScoredJob.getRoute().prettyPrintActivites());
+                if (logger.isDebugEnabled()) {                    
+                    logger.debug("route {} inserted {} to position {}, after insert {}, badJobs: {}",
+                            beforeInsert,
+                            bestScoredJob.getJob().getId(),
+                            bestScoredJob.getInsertionData().getDeliveryInsertionIndex(),
+                            bestScoredJob.getRoute().prettyPrintActivites(),
+                            badJobsToStr(badJobs));
+                }
                 jobs.remove(bestScoredJob.getJob());
             }
             for (Job bad : badJobList) {
@@ -245,6 +248,14 @@ public class RegretInsertion extends AbstractInsertionStrategy {
             }
         }
         return badJobs;
+    }
+
+    private String badJobsToStr(List<Job> aBadJobs) {
+        List<String> names = new ArrayList<String>();
+        for (Job j : aBadJobs) {
+            names.add(j.getId());
+        }
+        return names.toString();
     }
 
     private ScoredJob nextJob(Collection<VehicleRoute> routes, List<Job> unassignedJobList, List<Job> badJobs) {

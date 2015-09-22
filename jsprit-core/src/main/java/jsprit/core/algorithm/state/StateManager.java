@@ -566,7 +566,7 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
         ruinListeners.addListener(ruinListener);
     }
     
-    void addRuinListener(RuinListener ruinListener) {
+    public void addRuinListener(RuinListener ruinListener) {
         ruinListeners.addListener(ruinListener);
     }
 
@@ -574,7 +574,7 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
         insertionListeners.addListener(insertionListener);
     }
     
-    void addInsertionListener(InsertionListener insertionListener) {
+    public void addInsertionListener(InsertionListener insertionListener) {
         insertionListeners.addListener(insertionListener);
     }
 

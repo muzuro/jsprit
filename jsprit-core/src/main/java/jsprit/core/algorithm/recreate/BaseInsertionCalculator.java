@@ -112,6 +112,7 @@ final class BaseInsertionCalculator implements JobInsertionCostsCalculator {
                     nextAct, prevActStartTime);
             
             if (status.equals(ConstraintsStatus.FULFILLED)) {
+                //base should be inserted before destination, so cost should be big negative
                 InsertionData insertionData = new InsertionData(-1000000000, InsertionData.NO_INDEX, insertionIndex, newVehicle, newDriver);
                 insertionData.getEvents().add(new InsertActivity(currentRoute, newVehicle, deliveryAct2Insert, insertionIndex));
                 insertionData.getEvents().add(new SwitchVehicle(currentRoute, newVehicle, newVehicleDepartureTime));
@@ -125,7 +126,9 @@ final class BaseInsertionCalculator implements JobInsertionCostsCalculator {
             prevActStartTime = CalculationUtils.getActivityEndTime(nextActArrTime, nextAct);
             prevAct = nextAct;
             insertionIndex++;
+            destinationBaseContext.incrementInsertionIndex();
         }
+        logger.info("Can`t insert base {}. route {}", jobToInsert.getName(), currentRoute.prettyPrintActivites());
         return InsertionData.createEmptyInsertionData();
     }
 

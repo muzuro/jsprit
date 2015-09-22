@@ -31,31 +31,15 @@ import jsprit.core.problem.solution.route.activity.ActivityVisitor;
 import jsprit.core.problem.solution.route.activity.PickupService;
 import jsprit.core.problem.solution.route.activity.TourActivity;
 
-class UpdateDestinationBaseLoads implements /*ActivityVisitor, StateUpdater, InsertionStartsListener, */JobInsertedListener, RuinListener {
+class UpdateDestinationBaseLoads implements JobInsertedListener, RuinListener {
 
     private StateManager stateManager;
-
-    /*
-     * default has one dimension with a value of zero
-     */
-    private Capacity currentLoad;
-
-    private Capacity defaultValue;
-
 
     public UpdateDestinationBaseLoads(StateManager stateManager) {
         super();
         this.stateManager = stateManager;
-        defaultValue = Capacity.Builder.newInstance().build();
     }
 
-//    @Override
-//    public void informInsertionStarts(Collection<VehicleRoute> vehicleRoutes, Collection<Job> unassignedJobs) {
-////        for (VehicleRoute route : vehicleRoutes) {
-////            insertionStarts(route);
-////        }
-//    }
-    
     void refreshRuns(VehicleRoute route) {
         Capacity runLoad = Capacity.Builder.newInstance().build();
         int runNum = 0;
@@ -74,33 +58,9 @@ class UpdateDestinationBaseLoads implements /*ActivityVisitor, StateUpdater, Ins
         
     }
 
-//    @Override
-//    public void begin(VehicleRoute route) {
-////        currentLoad = stateManager.getRouteState(route, InternalStates.LOAD_AT_BEGINNING, Capacity.class);
-////        if (currentLoad == null) currentLoad = defaultValue;
-//    }
-//
-//    @Override
-//    public void visit(TourActivity act) {
-////        currentLoad = Capacity.addup(currentLoad, act.getSize());
-////        stateManager.putInternalTypedActivityState(act, InternalStates.LOAD, currentLoad);
-//    }
-//
-//    @Override
-//    public void finish() {
-////        currentLoad = Capacity.Builder.newInstance().build();
-//    }
-
     @Override
     public void informJobInserted(Job job2insert, VehicleRoute inRoute, double additionalCosts, double additionalTime) {
         refreshRuns(inRoute);
-//        if (job2insert instanceof Base) {
-//        } else if (job2insert instanceof Destination) {
-//            System.out.println(job2insert);
-////            Capacity loadAtEnd = stateManager.getRouteState(inRoute, InternalStates.LOAD_AT_END, Capacity.class);
-////            if (loadAtEnd == null) loadAtEnd = defaultValue;
-////            stateManager.putTypedInternalRouteState(inRoute, InternalStates.LOAD_AT_END, Capacity.addup(loadAtEnd, job2insert.getSize()));
-//        }
     }
 
     @Override

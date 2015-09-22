@@ -140,7 +140,6 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
                 rewindRun = false;
             }
             
-            // increment run num, if prev is base
             if (prevAct instanceof BaseService) {
                 destinationBaseContext.incrementRunNum();
             }
@@ -164,6 +163,7 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
                     insertionData.setVehicleDepartureTime(newVehicleDepartureTime);
                     return insertionData;
                 } else if (status.equals(ConstraintsStatus.NOT_FULFILLED_BREAK)) {
+                    //it means run is full, we shouldn`t check other destinations in current run
                     rewindRun = true;
                 }
             }
@@ -172,8 +172,10 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
             prevActStartTime = CalculationUtils.getActivityEndTime(nextActArrTime, nextAct);
             prevAct = nextAct;
             actIndex++;
+            destinationBaseContext.incrementInsertionIndex();
         }
         if (insertionIndex == InsertionData.NO_INDEX) {
+            logger.debug("Can`t insert destination {}. route {}", jobToInsert.getName(), currentRoute.prettyPrintActivites());
             return InsertionData.createEmptyInsertionData();
         }
         InsertionData insertionData = new InsertionData(bestCost, InsertionData.NO_INDEX, insertionIndex, newVehicle, newDriver);
