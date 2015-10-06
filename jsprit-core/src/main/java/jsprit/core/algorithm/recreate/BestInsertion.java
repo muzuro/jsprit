@@ -87,10 +87,36 @@ public final class BestInsertion extends AbstractInsertionStrategy {
                     vehicleRoutes.add(newRoute);
                 }
             }
-            if (bestInsertion == null) badJobs.add(unassignedJob);
-            else insertJob(unassignedJob, bestInsertion.getInsertionData(), bestInsertion.getRoute());
+            if (bestInsertion == null) {
+                badJobs.add(unassignedJob);
+            } else {
+                String beforeInsert = bestInsertion.getRoute().prettyPrintActivites();
+                insertJob(unassignedJob, bestInsertion.getInsertionData(), bestInsertion.getRoute());
+                
+                if (logger.isDebugEnabled()) {                    
+                    logger.debug("route {} inserted {} to position {}, after insert {}, badJobs: {}",
+                            beforeInsert,
+                            unassignedJob.getId(),
+                            bestInsertion.getInsertionData().getDeliveryInsertionIndex(),
+                            bestInsertion.getRoute().prettyPrintActivitesWithTimes(),
+                            badJobsToStr(badJobs));
+                }
+            }
         }
         return badJobs;
     }
 
+    private String badJobsToStr(List<Job> aBadJobs) {
+        List<String> names = new ArrayList<String>();
+        for (Job j : aBadJobs) {
+            names.add(j.getId());
+        }
+        return names.toString();
+    }
+    
+    @Override
+    protected JobInsertionCostsCalculator getJobInsertionCostsCalculator() {
+        return bestInsertionCostCalculator;
+    }
+    
 }

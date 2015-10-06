@@ -208,6 +208,7 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
         problemStates_.clear();
         route_state_map.clear();
         vehicle_dependent_route_state_map.clear();
+        runStateMap.clear();
     }
 
     private void fill_threeDimArr(Object[][][] states, Object o) {
@@ -242,7 +243,7 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
         if (act.getIndex() < 0) return null;
         T state;
         try {
-            state = type.cast(activity_states[act.getIndex()][stateId.getIndex()]);
+            state = (T) activity_states[act.getIndex()][stateId.getIndex()];
         } catch (ClassCastException e) {
             throw getClassCastException(e, stateId, type.toString(), activity_states[act.getIndex()][stateId.getIndex()].getClass().toString());
         }

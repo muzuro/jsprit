@@ -18,20 +18,28 @@
 package jsprit.core.algorithm.recreate;
 
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Random;
+
 import jsprit.core.algorithm.recreate.listener.InsertionListener;
 import jsprit.core.algorithm.recreate.listener.InsertionListeners;
+import jsprit.core.problem.AbstractActivity;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.driver.Driver;
+import jsprit.core.problem.driver.DriverImpl;
+import jsprit.core.problem.job.Base;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.VehicleRoute;
 import jsprit.core.problem.vehicle.Vehicle;
 import jsprit.core.util.RandomNumberGeneration;
+
+import org.apache.commons.lang.Validate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Random;
 
 public abstract class AbstractInsertionStrategy implements InsertionStrategy {
 
@@ -86,11 +94,49 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
     @Override
     public Collection<Job> insertJobs(Collection<VehicleRoute> vehicleRoutes, Collection<Job> unassignedJobs) {
         insertionsListeners.informInsertionStarts(vehicleRoutes, unassignedJobs);
-        Collection<Job> badJobs = insertUnassignedJobs(vehicleRoutes, unassignedJobs);
+        List<Base> bases = new ArrayList<Base>();
+        List<Job> notBases = new ArrayList<Job>();
+        for (Job job : unassignedJobs) {
+            if (job instanceof Base) {
+                bases.add((Base) job);
+            } else {
+                notBases.add(job);
+            }
+        }
+        
+        insertBases(vehicleRoutes, bases);
+        Collection<Job> badJobs = insertUnassignedJobs(vehicleRoutes, notBases);
         insertionsListeners.informInsertionEndsListeners(vehicleRoutes);
         return badJobs;
     }
 
+    private void insertBases(Collection<VehicleRoute> vehicleRoutes, Collection<Base> unassignedBases) {
+        if (unassignedBases.isEmpty()) {
+            return;
+        }
+        VehicleRoute route; 
+        if (vehicleRoutes.size() == 0) {
+            route = VehicleRoute.emptyRoute();
+            vehicleRoutes.add(route);
+        } else if (vehicleRoutes.size() == 1) {
+            route = vehicleRoutes.iterator().next();
+        } else {
+            throw new IllegalStateException("Only one route currently supported");
+        }
+        Validate.isTrue(vrp.getVehicles().size() == 1);
+        Vehicle vehicle = vrp.getVehicles().iterator().next();
+        for (Base base : unassignedBases) {
+            InsertionData iData = getJobInsertionCostsCalculator().getInsertionData(route, base, vehicle,
+                    route.getDepartureTime(), DriverImpl.noDriver(), Double.MAX_VALUE);
+//            int lastIndex = route.getActivities().size();
+//            InsertionData iData = new InsertionData(0, lastIndex, lastIndex, vehicle, route.getDriver());
+//            iData.getEvents().add(new SwitchVehicle(route, vehicle, route.getDepartureTime()));
+//            AbstractActivity activity = vrp.copyAndGetActivities(base).iterator().next();
+//            iData.getEvents().add(new InsertActivity(route, vehicle, activity, lastIndex));
+            insertJob(base, iData, route);
+        }
+    }
+    
     public abstract Collection<Job> insertUnassignedJobs(Collection<VehicleRoute> vehicleRoutes, Collection<Job> unassignedJobs);
 
     @Override
@@ -106,9 +152,10 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
     @Override
     public void addListener(InsertionListener insertionListener) {
         insertionsListeners.addListener(insertionListener);
-
     }
 
+    protected abstract JobInsertionCostsCalculator getJobInsertionCostsCalculator();
+    
     protected void insertJob(Job unassignedJob, InsertionData iData, VehicleRoute inRoute) {
         logger.trace("insert: [jobId={}]{}", unassignedJob.getId(), iData);
         insertionsListeners.informBeforeJobInsertion(unassignedJob, iData, inRoute);

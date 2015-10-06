@@ -203,6 +203,13 @@ public class VehicleRoutingAlgorithm {
             counter.incCounter();
             SearchStrategy strategy = searchStrategyManager.getRandomStrategy();
             DiscoveredSolution discoveredSolution = strategy.run(problem, solutions);
+            
+            if (logger.isDebugEnabled()) {                
+                VehicleRoutingProblemSolution solution = discoveredSolution.getSolution();
+                VehicleRoute route = solution.getRoutes().iterator().next();
+                logger.debug("{} - {}", solution.getCost(), route.prettyPrintActivites());
+            }
+            
             if (logger.isTraceEnabled()) log(discoveredSolution);
             memorizeIfBestEver(discoveredSolution);
             selectedStrategy(discoveredSolution, problem, solutions);

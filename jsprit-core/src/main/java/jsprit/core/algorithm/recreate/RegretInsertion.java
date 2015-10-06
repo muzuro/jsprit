@@ -207,6 +207,11 @@ public class RegretInsertion extends AbstractInsertionStrategy {
     }
 
     @Override
+    protected JobInsertionCostsCalculator getJobInsertionCostsCalculator() {
+        return insertionCostsCalculator;
+    }
+    
+    @Override
     public String toString() {
         return "[name=regretInsertion][additionalScorer=" + scoringFunction + "]";
     }
@@ -237,7 +242,7 @@ public class RegretInsertion extends AbstractInsertionStrategy {
                             beforeInsert,
                             bestScoredJob.getJob().getId(),
                             bestScoredJob.getInsertionData().getDeliveryInsertionIndex(),
-                            bestScoredJob.getRoute().prettyPrintActivites(),
+                            bestScoredJob.getRoute().prettyPrintActivitesWithTimes(),
                             badJobsToStr(badJobs));
                 }
                 jobs.remove(bestScoredJob.getJob());

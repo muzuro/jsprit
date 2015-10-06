@@ -18,10 +18,13 @@ package jsprit.core.algorithm;
 
 import jsprit.core.algorithm.acceptor.SolutionAcceptor;
 import jsprit.core.algorithm.listener.SearchStrategyModuleListener;
+import jsprit.core.algorithm.module.RuinAndRecreateModule;
 import jsprit.core.algorithm.selector.SolutionSelector;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.solution.SolutionCostCalculator;
 import jsprit.core.problem.solution.VehicleRoutingProblemSolution;
+import jsprit.core.problem.solution.route.VehicleRoute;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -147,6 +150,10 @@ public class SearchStrategy {
         }
         double costs = solutionCostCalculator.getCosts(lastSolution);
         lastSolution.setCost(costs);
+        if (logger.isDebugEnabled() && lastSolution.getCost() < solution.getCost()) {
+            RuinAndRecreateModule rrm = (RuinAndRecreateModule) searchStrategyModules.iterator().next();
+            logger.debug("improved with ruin {}, insertion {}", rrm.getRuin(), rrm.getInsertion());
+        }
         boolean solutionAccepted = solutionAcceptor.acceptSolution(solutions, lastSolution);
         return new DiscoveredSolution(lastSolution, solutionAccepted, getId());
     }

@@ -1,19 +1,27 @@
 package jsprit.core.problem.constraint;
 
+import org.junit.Assert;
+import org.junit.Test;
+import org.mockito.Mockito;
+
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
 import jsprit.core.algorithm.VehicleRoutingAlgorithm;
 import jsprit.core.algorithm.box.Jsprit;
+import jsprit.core.algorithm.box.Jsprit.Parameter;
 import jsprit.core.algorithm.state.InternalStates;
 import jsprit.core.algorithm.state.StateManager;
+import jsprit.core.algorithm.state.UpdateActivityTimes;
 import jsprit.core.algorithm.state.UpdateDestinationTimeMiss;
 import jsprit.core.problem.Capacity;
 import jsprit.core.problem.Location;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.VehicleRoutingProblem.FleetSize;
 import jsprit.core.problem.constraint.ConstraintManager.Priority;
+import jsprit.core.problem.cost.TimeWindowCosts;
 import jsprit.core.problem.job.Base;
 import jsprit.core.problem.job.Destination;
 import jsprit.core.problem.solution.VehicleRoutingProblemSolution;
@@ -24,11 +32,8 @@ import jsprit.core.problem.solution.route.activity.TimeWindow;
 import jsprit.core.problem.solution.route.activity.TourActivity;
 import jsprit.core.problem.vehicle.VehicleImpl;
 import jsprit.core.problem.vehicle.VehicleTypeImpl;
+import jsprit.core.util.ActivityTimeTracker;
 import jsprit.core.util.Solutions;
-
-import org.junit.Assert;
-import org.junit.Test;
-import org.mockito.Mockito;
 
 public class DestinationBaseTest {
 
@@ -54,8 +59,10 @@ public class DestinationBaseTest {
         VehicleImpl v1 = VehicleImpl.Builder.newInstance("v1").setType(vt)
                 .setStartLocation(Location.newInstance(0,0)).setEarliestStart(0).build();
         
-        VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance().addJob(b1).addJob(b2).addJob(d1)
-                .addJob(d2).addVehicle(v1).setFleetSize(FleetSize.FINITE).build();
+        VehicleRoute initialRoute = VehicleRoute.Builder.newInstance(v1).addService(b1).addService(b2).build();
+        
+        VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance()/*.addJob(b1).addJob(b2)*/.addJob(d1)
+                .addJob(d2).addVehicle(v1).setFleetSize(FleetSize.FINITE).addInitialVehicleRoute(initialRoute).build();
         
         StateManager stateManager = new StateManager(vrp);
         stateManager.updateDestainationBaseLoadStates();
@@ -93,7 +100,8 @@ public class DestinationBaseTest {
         VehicleImpl v1 = VehicleImpl.Builder.newInstance("v1").setType(vt)
                 .setStartLocation(Location.newInstance(0,0)).setEarliestStart(0).build();
         
-        VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance().addJob(b1).addJob(b2)
+        VehicleRoute initialRoute = VehicleRoute.Builder.newInstance(v1).addService(b1).addService(b2).build();
+        VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance().addInitialVehicleRoute(initialRoute)/*.addJob(b1).addJob(b2)*/
                 .addAllJobs(destinations).addVehicle(v1).setFleetSize(FleetSize.FINITE).build();
         
         StateManager stateManager = new StateManager(vrp);
@@ -111,9 +119,6 @@ public class DestinationBaseTest {
         VehicleRoutingProblemSolution solution = Solutions.bestOf(vra.searchSolutions());
         VehicleRoute route = solution.getRoutes().iterator().next();
         Assert.assertEquals(25, route.getActivities().size());
-        System.out.println(route.prettyPrintActivites());
-        Assert.assertTrue(route.getActivities().get(15) instanceof BaseService);
-        Assert.assertTrue(route.getActivities().get(24) instanceof BaseService);
     }
     
     @Test
@@ -131,7 +136,8 @@ public class DestinationBaseTest {
         VehicleImpl v1 = VehicleImpl.Builder.newInstance("v1").setType(vt)
                 .setStartLocation(Location.newInstance(0,0)).setEarliestStart(0).build();
         
-        VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance().addJob(b1).addJob(b2)
+        VehicleRoute initialRoute = VehicleRoute.Builder.newInstance(v1).addService(b1).addService(b2).build();
+        VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance().addInitialVehicleRoute(initialRoute)
                 .addAllJobs(destinations).addVehicle(v1).setFleetSize(FleetSize.FINITE).build();
         
         StateManager stateManager = new StateManager(vrp);
@@ -159,43 +165,53 @@ public class DestinationBaseTest {
         //services
         List<Destination> destinations = new ArrayList<Destination>();
         for (int i = 0; i < 10; i++) {
-            destinations.add(createDestination(String.format("d%s", i), Location.newInstance(5*i, 10*i), 1));
+            destinations.add(createDestination(String.format("d%s", i), Location.newInstance(5 * i+1, 10 * i+1), 1));
         }
-        destinations.add(createDestination("dtw2", Location.newInstance(54, -18), 10, new TimeWindow(100, 200)));
-        destinations.add(createDestination("dtw1", Location.newInstance(10, 102), 10, new TimeWindow(0, 100)));
-        destinations.add(createDestination("dtw3", Location.newInstance(-56, 14), 1, new TimeWindow(200, 300)));
+        destinations.add(createDestination("dtw1", Location.newInstance(52, 10), 10, new TimeWindow(0, 100)));
+        destinations.add(createDestination("dtw2", Location.newInstance(54, 18), 10, new TimeWindow(100, 200)));
+        destinations.add(createDestination("dtw3", Location.newInstance(56, 14), 10, new TimeWindow(200, 300)));
+        Collections.shuffle(destinations);
         
         Base b1 = Base.Builder.newInstance("b1").setLocation(Location.newInstance(5,5)).build();
-        Base b2 = Base.Builder.newInstance("b2").setLocation(Location.newInstance(5,5)).build();
         
         // vehicle
-        VehicleTypeImpl vt = VehicleTypeImpl.Builder.newInstance("vt").addCapacityDimension(0, 20).build();
-        VehicleImpl v1 = VehicleImpl.Builder.newInstance("v1").setType(vt)
-                .setStartLocation(Location.newInstance(0,0)).setEarliestStart(0).build();
+        VehicleTypeImpl vt = VehicleTypeImpl.Builder.newInstance("vt").addCapacityDimension(0, 100).build();
+        VehicleImpl v1 = VehicleImpl.Builder.newInstance("v1").setType(vt).setStartLocation(Location.newInstance(0,0))
+                .setEarliestStart(0).build();
         
-        VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance().addJob(b1).addJob(b2)
-                .addAllJobs(destinations).addVehicle(v1).setFleetSize(FleetSize.FINITE).build();
+        VehicleRoute initialRoute = VehicleRoute.Builder.newInstance(v1).addService(b1).build();
+        int timeWindowCostWeight = 100;
+        VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance().addInitialVehicleRoute(initialRoute)
+                .addAllJobs(destinations).addVehicle(v1).setFleetSize(FleetSize.FINITE)
+                .setActivityCosts(new TimeWindowCosts(timeWindowCostWeight)).build();
         
         StateManager stateManager = new StateManager(vrp);
         stateManager.updateDestainationBaseLoadStates();
-        UpdateDestinationTimeMiss updateDestinationTimeMiss = new UpdateDestinationTimeMiss(stateManager, vrp);
+        
+        UpdateDestinationTimeMiss updateDestinationTimeMiss = new UpdateDestinationTimeMiss(stateManager);
         stateManager.addRuinListener(updateDestinationTimeMiss);
         stateManager.addInsertionListener(updateDestinationTimeMiss);
+        stateManager.addStateUpdater(new UpdateActivityTimes(vrp.getTransportCosts(),
+                ActivityTimeTracker.ActivityPolicy.AS_SOON_AS_ARRIVED));
         
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
         constraintManager.addConstraint(new BaseLoadActivityLevelConstraint(stateManager), Priority.HIGH);
         constraintManager.addConstraint(new DestinationLoadActivityLevelConstraint(stateManager), Priority.HIGH);
-        constraintManager.addConstraint(new DestinationSoftTimeConstraint(stateManager, vrp, 5));
+        constraintManager.addConstraint(new DestinationSoftTimeConstraint(stateManager, vrp, timeWindowCostWeight/*, 200*/));
         
         VehicleRoutingAlgorithm vra = Jsprit.Builder.newInstance(vrp)
                 .addCoreStateAndConstraintStuff(false)
                 .setStateAndConstraintManager(stateManager, constraintManager)
+                .setProperty(Parameter.THRESHOLD_INI, "0.08")
+                .setProperty(Parameter.THRESHOLD_ALPHA, "0.3")
+//                .setProperty(Strategy.RANDOM_REGRET, "10")
+//                .setProperty(Strategy.RANDOM_BEST, "10")
                 .buildAlgorithm();
         
-        vra.setMaxIterations(100);
+        vra.setMaxIterations(500);
         VehicleRoutingProblemSolution solution = Solutions.bestOf(vra.searchSolutions());
         VehicleRoute route = solution.getRoutes().iterator().next();
-        System.out.println(route.prettyPrintActivites());
+        System.out.println(String.format("%s-%s", solution.getCost(), route.prettyPrintActivitesWithTimes()));
         
         int tw1Ind = -1;
         int tw2Ind = -1;

@@ -190,5 +190,10 @@ public final class BestInsertionConcurrent extends AbstractInsertionStrategy {
         return batches;
     }
 
+    @Override
+    protected JobInsertionCostsCalculator getJobInsertionCostsCalculator() {
+        return bestInsertionCostCalculator;
+    }
+
 
 }

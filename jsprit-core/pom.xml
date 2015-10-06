@@ -87,8 +87,7 @@
             <artifactId>commons-math3</artifactId>
             <version>3.4</version>
         </dependency>
-
+        
     </dependencies>
-
 
 </project>

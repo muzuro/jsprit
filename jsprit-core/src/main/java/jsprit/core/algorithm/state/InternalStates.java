@@ -52,6 +52,16 @@ public class InternalStates {
     
     public static class DestinationBase {
         public static final StateId RUN_LOAD = new StateFactory.StateIdImpl("run_load", 0);
+        
+        public static final StateId FUTURE_WAITING = new StateFactory.StateIdImpl("dest_future_waiting", 15);    
+        
+        public static final StateId PAST_WAITING = new StateFactory.StateIdImpl("dest_past_waiting", 16);
+        
+        public static final StateId FUTURE_LATENESS = new StateFactory.StateIdImpl("dest_past_waiting", 17);
+        
+        public static final StateId PAST_LATENESS = new StateFactory.StateIdImpl("dest_past_waiting", 18);
+        
+        public static final StateId TIMEWINDOWLESS_COUNT_WEIGTH = new StateFactory.StateIdImpl("timewindowless_count_weigth", 18);
     }
     
 }

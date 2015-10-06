@@ -112,8 +112,7 @@ final class BaseInsertionCalculator implements JobInsertionCostsCalculator {
                     nextAct, prevActStartTime);
             
             if (status.equals(ConstraintsStatus.FULFILLED)) {
-                //base should be inserted before destination, so cost should be big negative
-                InsertionData insertionData = new InsertionData(-1000000000, InsertionData.NO_INDEX, insertionIndex, newVehicle, newDriver);
+                InsertionData insertionData = new InsertionData(0, InsertionData.NO_INDEX, insertionIndex, newVehicle, newDriver);
                 insertionData.getEvents().add(new InsertActivity(currentRoute, newVehicle, deliveryAct2Insert, insertionIndex));
                 insertionData.getEvents().add(new SwitchVehicle(currentRoute, newVehicle, newVehicleDepartureTime));
                 insertionData.setVehicleDepartureTime(newVehicleDepartureTime);

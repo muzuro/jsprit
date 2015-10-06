@@ -127,6 +127,12 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
         Iterator<TourActivity> activityIterator = currentRoute.getActivities().iterator();
         boolean tourEnd = false;
         boolean rewindRun = false;
+//        StringBuilder sb = null;
+//        if (!currentRoute.prettyPrintActivites().contains("dtw")
+//                //&& currentRoute.prettyPrintActivites().contains("dtw2")
+//                && deliveryAct2Insert.getName().contains("dtw")) {
+//            sb = new StringBuilder("\n");
+//        }
         while (!tourEnd) {
             TourActivity nextAct;
             if (activityIterator.hasNext()) {
@@ -145,37 +151,39 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
             }
             
             if (!rewindRun) {//omit constraints check for full runs                 
-                boolean isFirstInsert = prevAct instanceof Start && nextAct instanceof End;
                 ConstraintsStatus status = hardActivityLevelConstraint.fulfilled(insertionContext, prevAct, deliveryAct2Insert, nextAct, prevActStartTime);
                 if (status.equals(ConstraintsStatus.FULFILLED)) {
                     //from job2insert induced costs at activity level
                     double additionalICostsAtActLevel = softActivityConstraint.getCosts(insertionContext, prevAct, deliveryAct2Insert, nextAct, prevActStartTime);
                     double additionalTransportationCosts = additionalTransportCostsCalculator.getCosts(insertionContext, prevAct, nextAct, deliveryAct2Insert, prevActStartTime);
-                    if (additionalICostsAtRouteLevel + additionalICostsAtActLevel + additionalTransportationCosts < bestCost) {
-                        bestCost = additionalICostsAtRouteLevel + additionalICostsAtActLevel + additionalTransportationCosts;
+                    double iterCost = additionalICostsAtRouteLevel + additionalICostsAtActLevel + additionalTransportationCosts;
+                    if (iterCost < bestCost) {
+                        bestCost = iterCost;
                         insertionIndex = actIndex;
                     }
-                } else if (status.equals(ConstraintsStatus.NOT_FULFILLED_BREAK) && isFirstInsert) {// at first should be inserted base
-                    insertionIndex = actIndex;
-                    InsertionData insertionData = new InsertionData(1000000000, InsertionData.NO_INDEX, insertionIndex, newVehicle, newDriver);
-                    insertionData.getEvents().add(new InsertActivity(currentRoute, newVehicle, deliveryAct2Insert, insertionIndex));
-                    insertionData.getEvents().add(new SwitchVehicle(currentRoute, newVehicle, newVehicleDepartureTime));
-                    insertionData.setVehicleDepartureTime(newVehicleDepartureTime);
-                    return insertionData;
+//                    if (sb != null) {
+//                       sb.append(String.format("%s|%s|%s|%s|%s|%s", actIndex, destinationBaseContext.getRunNum(), iterCost,
+//                               bestCost, additionalICostsAtActLevel, additionalTransportationCosts));
+//                       sb.append("\n");
+//                    }
                 } else if (status.equals(ConstraintsStatus.NOT_FULFILLED_BREAK)) {
                     //it means run is full, we shouldn`t check other destinations in current run
                     rewindRun = true;
                 }
             }
-            
             double nextActArrTime = prevActStartTime + transportCosts.getTransportTime(prevAct.getLocation(), nextAct.getLocation(), prevActStartTime, newDriver, newVehicle);
             prevActStartTime = CalculationUtils.getActivityEndTime(nextActArrTime, nextAct);
             prevAct = nextAct;
             actIndex++;
             destinationBaseContext.incrementInsertionIndex();
         }
+//        if (sb != null) {
+//            logger.info(currentRoute.prettyPrintActivites());
+//            logger.info("{} possible insert position {}", deliveryAct2Insert.getName(), insertionIndex);
+//            logger.info(sb.toString());
+//        }
         if (insertionIndex == InsertionData.NO_INDEX) {
-            logger.debug("Can`t insert destination {}. route {}", jobToInsert.getName(), currentRoute.prettyPrintActivites());
+            logger.debug("Can`t insert destination {}. route {}", jobToInsert.getName(), currentRoute.prettyPrintActivitesWithCapacity());
             return InsertionData.createEmptyInsertionData();
         }
         InsertionData insertionData = new InsertionData(bestCost, InsertionData.NO_INDEX, insertionIndex, newVehicle, newDriver);
@@ -184,5 +192,7 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
         insertionData.setVehicleDepartureTime(newVehicleDepartureTime);
         return insertionData;
     }
+    
+    
 
 }

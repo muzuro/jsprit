@@ -18,12 +18,11 @@ package jsprit.core.algorithm.state;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.ListIterator;
+import java.util.Objects;
 
 import jsprit.core.algorithm.recreate.listener.JobInsertedListener;
 import jsprit.core.algorithm.ruin.listener.RuinListener;
-import jsprit.core.problem.Location;
-import jsprit.core.problem.VehicleRoutingProblem;
-import jsprit.core.problem.cost.VehicleRoutingTransportCosts;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.VehicleRoute;
 import jsprit.core.problem.solution.route.activity.DestinationService;
@@ -33,14 +32,10 @@ import jsprit.core.problem.solution.route.activity.TimeWindow;
 public class UpdateDestinationTimeMiss implements JobInsertedListener, RuinListener {
 
     private StateManager stateManager;
-    private VehicleRoutingProblem vrp;
 
-    public UpdateDestinationTimeMiss(StateManager stateManager, VehicleRoutingProblem aVrp) {
+    public UpdateDestinationTimeMiss(StateManager stateManager) {
         this.stateManager = stateManager;
-        vrp = aVrp;
     }
-
-    
 
     @Override
     public void informJobInserted(Job job2insert, VehicleRoute inRoute, double additionalCosts, double additionalTime) {
@@ -54,52 +49,60 @@ public class UpdateDestinationTimeMiss implements JobInsertedListener, RuinListe
         }
     }
     
-    void refreshRuns(VehicleRoute route) {
-        VehicleRoutingTransportCosts transportCosts = vrp.getTransportCosts();
-        Location prevPoint = route.getStart().getLocation();
-        
+    private void refreshRuns(VehicleRoute route) {
         List<PickupService> activities = (List) route.getActivities();
-        double time = route.getVehicle().getEarliestDeparture();
-        for (PickupService ta : activities) {
-            Location nextPoint = ta.getLocation();
-            time += transportCosts.getTransportTime(prevPoint, nextPoint, time, route.getDriver(), route.getVehicle());
-            if (ta instanceof DestinationService) {                
-                double startMiss = calculateStartMissSecond(ta, time);
-                double endMiss = calculateEndMissSecond(ta, time);
-                stateManager.putInternalTypedActivityState(ta, InternalStates.TIME_SLACK, new TimeMissInfo(startMiss,
-                        endMiss));
+        ListIterator<PickupService> listIterator = activities.listIterator();
+        
+        double destinationCount = 0;
+        double destinationTwLessCount = 0;
+        
+        double pastLateness = 0;
+        double pastWaiting = 0;
+        
+        while (listIterator.hasNext()) {
+            PickupService ta = listIterator.next();
+            if (!(ta instanceof DestinationService)) {
+                continue;
             }
-            time += ta.getOperationTime();
+            destinationCount++;
+            stateManager.putInternalTypedActivityState(ta, InternalStates.DestinationBase.PAST_LATENESS, pastLateness);
+            stateManager.putInternalTypedActivityState(ta, InternalStates.DestinationBase.PAST_WAITING, pastWaiting);
+            if (!TimeWindowMissUtils.isDefaultTimeWindow(ta.getJob().getTimeWindow())) {
+                pastWaiting += TimeWindowMissUtils.calculateStartMissSecond(ta, route.getVehicle());
+                pastLateness += TimeWindowMissUtils.calculateEndMissSecond(ta, route.getVehicle());
+            } else {
+                destinationTwLessCount++;
+            }
         }
         
+        stateManager.putTypedInternalRouteState(route, InternalStates.DestinationBase.PAST_LATENESS, pastLateness);
+        stateManager.putTypedInternalRouteState(route, InternalStates.DestinationBase.PAST_WAITING, pastWaiting);
+        
+        if (destinationCount != 0) {
+            double timewindowlessCountWeigth = destinationTwLessCount / destinationCount;
+            stateManager.putTypedInternalRouteState(route, InternalStates.DestinationBase.TIMEWINDOWLESS_COUNT_WEIGTH,
+                    timewindowlessCountWeigth);
+        } else {
+            stateManager.putTypedInternalRouteState(route, InternalStates.DestinationBase.TIMEWINDOWLESS_COUNT_WEIGTH,
+                    0d);
+        }
+        
+        double futureLateness = 0;
+        double futureWaiting = 0;
+        while (listIterator.hasPrevious()) {
+            PickupService ta = listIterator.previous();
+            stateManager.putInternalTypedActivityState(ta, InternalStates.DestinationBase.FUTURE_LATENESS, futureLateness);
+            stateManager.putInternalTypedActivityState(ta, InternalStates.DestinationBase.FUTURE_WAITING, futureWaiting);
+            if (ta instanceof DestinationService && !TimeWindowMissUtils.isDefaultTimeWindow(ta.getJob().getTimeWindow())) {
+                futureWaiting += TimeWindowMissUtils.calculateStartMissSecond(ta, route.getVehicle());
+                futureLateness += TimeWindowMissUtils.calculateEndMissSecond(ta, route.getVehicle());
+            }
+        }
+        
+        stateManager.putTypedInternalRouteState(route, InternalStates.DestinationBase.FUTURE_LATENESS, futureLateness);
+        stateManager.putTypedInternalRouteState(route, InternalStates.DestinationBase.FUTURE_WAITING, futureWaiting);
     }
     
-    private double calculateStartMissSecond(PickupService aAct, double aArrivalTime) {
-        TimeWindow timeWindow = aAct.getJob().getTimeWindow();
-        return timeWindow.getStart() - aArrivalTime;//отрицательное время - значит есть запас 
-    }
-    
-    private double calculateEndMissSecond(PickupService aAct, double aArrivalTime) {
-        TimeWindow timeWindow = aAct.getJob().getTimeWindow();
-        return aArrivalTime - timeWindow.getEnd();//отрицательное время - значит есть запас 
-    }
-    
-    public static class TimeMissInfo {
-        private final double startMiss;
-        private final double endMiss;
-        public TimeMissInfo(double startMiss, double endMiss) {
-            super();
-            this.startMiss = startMiss;
-            this.endMiss = endMiss;
-        }
-        public double getStartMiss() {
-            return startMiss;
-        }
-        public double getEndMiss() {
-            return endMiss;
-        }
-    }
-
     @Override
     public void removed(Job job, VehicleRoute fromRoute) {
         // TODO Auto-generated method stub

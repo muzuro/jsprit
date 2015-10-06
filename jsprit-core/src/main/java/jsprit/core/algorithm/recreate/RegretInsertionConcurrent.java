@@ -146,5 +146,10 @@ public class RegretInsertionConcurrent extends AbstractInsertionStrategy {
         return bestScoredJob;
     }
 
+    @Override
+    protected JobInsertionCostsCalculator getJobInsertionCostsCalculator() {
+        return insertionCostsCalculator;
+    }
+
 
 }

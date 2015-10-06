@@ -469,5 +469,21 @@ public class VehicleRoute {
         }
         return strs.toString();
     }
+    
+    public String prettyPrintActivitesWithCapacity() {
+        List<String> strs = new ArrayList<String>();
+        for (TourActivity ta : getActivities()) {
+            strs.add(String.format("%s(%s)", ta.getName(), ta.getSize().get(0)));
+        }
+        return strs.toString();
+    }
+    
+    public String prettyPrintActivitesWithTimes() {
+        List<String> strs = new ArrayList<String>();
+        for (TourActivity ta : getActivities()) {
+            strs.add(String.format("%s(%s)", ta.getName(), ta.getArrTime()));
+        }
+        return strs.toString();
+    }
 
 }

@@ -60,7 +60,6 @@ public class BuildAlgorithmFromScratch {
 
         private JobInsertionCostsCalculatorLight insertionCalculator;
 
-
         public MyBestStrategy(VehicleRoutingProblem vrp, VehicleFleetManager fleetManager, StateManager stateManager, ConstraintManager constraintManager) {
             super(vrp);
             insertionCalculator = JobInsertionCostsCalculatorLightFactory.createStandardCalculator(vrp, fleetManager, stateManager, constraintManager);
@@ -101,9 +100,13 @@ public class BuildAlgorithmFromScratch {
             return badJobs;
         }
 
+        @Override
+        protected JobInsertionCostsCalculator getJobInsertionCostsCalculator() {
+            // TODO Auto-generated method stub
+            return null;
+        }
 
     }
-
 
     public static void main(String[] args) {
         Examples.createOutputFolder();

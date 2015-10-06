@@ -17,6 +17,7 @@
 
 package jsprit.core.util;
 
+import jsprit.core.problem.solution.route.activity.DestinationService;
 import jsprit.core.problem.solution.route.activity.TourActivity;
 
 public class CalculationUtils {
@@ -30,6 +31,9 @@ public class CalculationUtils {
      * @return
      */
     public static double getActivityEndTime(double actArrTime, TourActivity act) {
+        if (act instanceof DestinationService) {// destination soft time windows
+            return actArrTime + act.getOperationTime();
+        }
         return Math.max(actArrTime, act.getTheoreticalEarliestOperationStartTime()) + act.getOperationTime();
     }
 }
