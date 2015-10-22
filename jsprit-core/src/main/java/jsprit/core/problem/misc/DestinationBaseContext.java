@@ -27,4 +27,8 @@ public class DestinationBaseContext {
         insertionIndex++;
     }
     
+    public boolean isFirstRun() {
+        return runNum == 0;
+    }
+    
 }

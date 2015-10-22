@@ -16,6 +16,8 @@
  ******************************************************************************/
 package jsprit.core.problem.constraint;
 
+import java.util.Objects;
+
 import jsprit.core.algorithm.state.InternalStates;
 import jsprit.core.problem.Capacity;
 import jsprit.core.problem.misc.JobInsertionContext;
@@ -36,9 +38,18 @@ public class DestinationLoadActivityLevelConstraint implements HardActivityConst
 
     private Capacity defaultValue;
 
+    private Capacity firstRunCapacity;
+
     public DestinationLoadActivityLevelConstraint(RouteAndActivityStateGetter stateManager) {
         super();
         this.stateManager = stateManager;
+        defaultValue = Capacity.Builder.newInstance().build();
+    }
+    
+    public DestinationLoadActivityLevelConstraint(RouteAndActivityStateGetter stateManager, Capacity aFirstRunCapacity) {
+        super();
+        this.stateManager = stateManager;
+        firstRunCapacity = aFirstRunCapacity;
         defaultValue = Capacity.Builder.newInstance().build();
     }
 
@@ -60,8 +71,11 @@ public class DestinationLoadActivityLevelConstraint implements HardActivityConst
             return ConstraintsStatus.NOT_FULFILLED_BREAK;// means not suitible for this run
         }
         //insert allowed if run is not loaded
-        if (Capacity.addup(newAct.getSize(), runLoad)
-                .isLessOrEqual(iFacts.getNewVehicle().getType().getCapacityDimensions())) {
+        Capacity vehicleCapacity = iFacts.getNewVehicle().getType().getCapacityDimensions();
+        if (iFacts.getDestinationBaseContext().isFirstRun() && Objects.nonNull(firstRunCapacity)) {
+            vehicleCapacity = firstRunCapacity;
+        }
+        if (Capacity.addup(newAct.getSize(), runLoad).isLessOrEqual(vehicleCapacity)) {
             return ConstraintsStatus.FULFILLED;
         }
         return ConstraintsStatus.NOT_FULFILLED_BREAK;// means not suitible for this run

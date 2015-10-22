@@ -122,6 +122,44 @@ public class DestinationBaseTest {
     }
     
     @Test
+    public void testLoadFirstRunLoad() {
+        //services
+        List<Destination> destinations = new ArrayList<Destination>();
+        for (int i = 0; i < 23; i++) {
+            destinations.add(createDestination(String.format("d%s", i), Location.newInstance(5*i, 10*i), 1));
+        }
+        Base b1 = Base.Builder.newInstance("b1").setLocation(Location.newInstance(5,5)).build();
+        Base b2 = Base.Builder.newInstance("b2").setLocation(Location.newInstance(5,5)).build();
+        
+        // vehicle
+        VehicleTypeImpl vt = VehicleTypeImpl.Builder.newInstance("vt").addCapacityDimension(0, 30).build();
+        VehicleImpl v1 = VehicleImpl.Builder.newInstance("v1").setType(vt)
+                .setStartLocation(Location.newInstance(0,0)).setEarliestStart(0).build();
+        
+        VehicleRoute initialRoute = VehicleRoute.Builder.newInstance(v1).addService(b1).addService(b2).build();
+        VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance().addInitialVehicleRoute(initialRoute)/*.addJob(b1).addJob(b2)*/
+                .addAllJobs(destinations).addVehicle(v1).setFleetSize(FleetSize.FINITE).build();
+        
+        StateManager stateManager = new StateManager(vrp);
+        stateManager.updateDestainationBaseLoadStates();
+        ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
+        constraintManager.addConstraint(new BaseLoadActivityLevelConstraint(stateManager), Priority.HIGH);
+        constraintManager.addConstraint(new DestinationLoadActivityLevelConstraint(stateManager,
+                Capacity.Builder.newInstance().addDimension(0, 10).build()), Priority.HIGH);
+        
+        VehicleRoutingAlgorithm vra = Jsprit.Builder.newInstance(vrp)
+                .addCoreStateAndConstraintStuff(false)
+                .setStateAndConstraintManager(stateManager, constraintManager)
+                .buildAlgorithm();
+        
+        vra.setMaxIterations(10);
+        VehicleRoutingProblemSolution solution = Solutions.bestOf(vra.searchSolutions());
+        VehicleRoute route = solution.getRoutes().iterator().next();
+        
+        Assert.assertTrue(route.getActivities().get(10) instanceof BaseService);
+    }
+    
+    @Test
     public void testLoadTwoBaseOneRun() {
         //services
         List<Destination> destinations = new ArrayList<Destination>();
