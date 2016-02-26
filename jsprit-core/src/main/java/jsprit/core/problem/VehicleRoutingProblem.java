@@ -16,6 +16,20 @@
  ******************************************************************************/
 package jsprit.core.problem;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.cost.VehicleRoutingActivityCosts;
 import jsprit.core.problem.cost.VehicleRoutingTransportCosts;
 import jsprit.core.problem.cost.WaitingTimeCosts;
@@ -33,10 +47,6 @@ import jsprit.core.problem.vehicle.VehicleTypeKey;
 import jsprit.core.util.Coordinate;
 import jsprit.core.util.CrowFlyCosts;
 import jsprit.core.util.Locations;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import java.util.*;
 
 
 /**
@@ -122,6 +132,8 @@ public class VehicleRoutingProblem {
 
         private final DefaultTourActivityFactory serviceActivityFactory = new DefaultTourActivityFactory();
 
+        private DestinationBaseLoadChecker destinationBaseLoadChecker;
+
         private void incJobIndexCounter() {
             jobIndexCounter++;
         }
@@ -161,6 +173,11 @@ public class VehicleRoutingProblem {
             };
         }
 
+        public Builder setDestinationBaseLoadChecker(DestinationBaseLoadChecker aDestinationBaseLoadChecker) {
+            destinationBaseLoadChecker = aDestinationBaseLoadChecker;
+            return this;
+        }
+        
         /**
          * Sets routing costs.
          *
@@ -465,7 +482,6 @@ public class VehicleRoutingProblem {
             return this;
         }
 
-
     }
 
     /**
@@ -520,7 +536,9 @@ public class VehicleRoutingProblem {
     private Map<Job, List<AbstractActivity>> activityMap;
 
     private int nuActivities;
-
+    
+    private DestinationBaseLoadChecker destinationBaseLoadChecker;
+    
     private final JobActivityFactory jobActivityFactory = new JobActivityFactory() {
 
         @Override
@@ -529,7 +547,7 @@ public class VehicleRoutingProblem {
         }
 
     };
-
+    
     private VehicleRoutingProblem(Builder builder) {
         this.jobs = builder.jobs;
         this.fleetSize = builder.fleetSize;
@@ -541,6 +559,7 @@ public class VehicleRoutingProblem {
         this.locations = builder.getLocations();
         this.activityMap = builder.activityMap;
         this.nuActivities = builder.activityIndexCounter;
+        this.destinationBaseLoadChecker = builder.destinationBaseLoadChecker;
         logger.info("setup problem: {}", this);
     }
 
@@ -642,6 +661,11 @@ public class VehicleRoutingProblem {
     public int getNuActivities() {
         return nuActivities;
     }
+    
+
+    public void setNuActivities(int aNuActivities) {
+        nuActivities = aNuActivities;
+    }
 
     /**
      * @return factory that creates the activities associated to a job
@@ -660,6 +684,10 @@ public class VehicleRoutingProblem {
             for (AbstractActivity act : activityMap.get(job)) acts.add((AbstractActivity) act.duplicate());
         }
         return acts;
+    }
+
+    public DestinationBaseLoadChecker getDestinationBaseLoadChecker() {
+        return destinationBaseLoadChecker;
     }
 
 }

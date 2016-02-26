@@ -22,6 +22,7 @@ import jsprit.core.algorithm.recreate.InsertionStrategy;
 import jsprit.core.algorithm.state.StateManager;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.constraint.ConstraintManager;
+import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.vehicle.VehicleFleetManager;
 import org.apache.commons.configuration.HierarchicalConfiguration;
 import org.apache.logging.log4j.LogManager;
@@ -37,7 +38,9 @@ class InsertionFactory {
 
     @SuppressWarnings("deprecation")
     public static InsertionStrategy createInsertion(VehicleRoutingProblem vrp, HierarchicalConfiguration config,
-                                                    VehicleFleetManager vehicleFleetManager, StateManager stateManager, List<PrioritizedVRAListener> algorithmListeners, ExecutorService executorService, int nuOfThreads, ConstraintManager constraintManager, boolean addDefaultCostCalculators) {
+        VehicleFleetManager vehicleFleetManager, StateManager stateManager,
+             List<PrioritizedVRAListener> algorithmListeners, ExecutorService executorService, int nuOfThreads,
+             ConstraintManager constraintManager, boolean addDefaultCostCalculators, DestinationBaseLoadChecker aDblc) {
 
         if (config.containsKey("[@name]")) {
             String insertionName = config.getString("[@name]");
@@ -46,7 +49,8 @@ class InsertionFactory {
             }
 
 
-            InsertionBuilder iBuilder = new InsertionBuilder(vrp, vehicleFleetManager, stateManager, constraintManager);
+            InsertionBuilder iBuilder = new InsertionBuilder(vrp, vehicleFleetManager, stateManager, constraintManager,
+                    aDblc);
 
             if (executorService != null) {
                 iBuilder.setConcurrentMode(executorService, nuOfThreads);

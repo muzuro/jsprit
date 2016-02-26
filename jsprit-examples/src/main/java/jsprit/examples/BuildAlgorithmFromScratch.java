@@ -61,7 +61,7 @@ public class BuildAlgorithmFromScratch {
         private JobInsertionCostsCalculatorLight insertionCalculator;
 
         public MyBestStrategy(VehicleRoutingProblem vrp, VehicleFleetManager fleetManager, StateManager stateManager, ConstraintManager constraintManager) {
-            super(vrp);
+            super(vrp, null);
             insertionCalculator = JobInsertionCostsCalculatorLightFactory.createStandardCalculator(vrp, fleetManager, stateManager, constraintManager);
         }
 
@@ -144,7 +144,7 @@ public class BuildAlgorithmFromScratch {
         MyBestStrategy best = new MyBestStrategy(vrp, fleetManager, stateManager, constraintManager);
 
         //regret insertion
-        InsertionBuilder iBuilder = new InsertionBuilder(vrp, fleetManager, stateManager, constraintManager);
+        InsertionBuilder iBuilder = new InsertionBuilder(vrp, fleetManager, stateManager, constraintManager, null);
         iBuilder.setInsertionStrategy(InsertionBuilder.Strategy.REGRET);
         RegretInsertion regret = (RegretInsertion) iBuilder.build();
         RegretInsertion.DefaultScorer scoringFunction = new RegretInsertion.DefaultScorer(vrp);

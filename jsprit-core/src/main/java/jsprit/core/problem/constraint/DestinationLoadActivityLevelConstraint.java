@@ -59,15 +59,14 @@ public class DestinationLoadActivityLevelConstraint implements HardActivityConst
         if (!(newAct instanceof DestinationService)) {
             return ConstraintsStatus.FULFILLED;
         }
-//      if (nextAct instanceof End) {
-//           //insert before end not allowed, only before Base
-//           return ConstraintsStatus.NOT_FULFILLED;
-//      }
+//        if (nextAct instanceof End) {
+//            return ConstraintsStatus.NOT_FULFILLED_BREAK; 
+//        }
         int runNum = iFacts.getDestinationBaseContext().getRunNum();
         Capacity runLoad = stateManager.getRunState(iFacts.getRoute(), runNum, InternalStates.DestinationBase.RUN_LOAD,
                 Capacity.class, defaultValue);
         //run is empty and insert before end not allow
-        if (nextAct instanceof End && runLoad == defaultValue) {
+        if (nextAct instanceof End/* && runLoad == defaultValue*/) {
             return ConstraintsStatus.NOT_FULFILLED_BREAK;// means not suitible for this run
         }
         //insert allowed if run is not loaded

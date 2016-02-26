@@ -16,10 +16,19 @@
  ******************************************************************************/
 package jsprit.core.algorithm.recreate;
 
-import java.util.Iterator;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
+
+import jsprit.core.problem.AbstractActivity;
 import jsprit.core.problem.JobActivityFactory;
+import jsprit.core.problem.Location;
 import jsprit.core.problem.constraint.ConstraintManager;
+import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.constraint.HardActivityConstraint;
 import jsprit.core.problem.constraint.HardActivityConstraint.ConstraintsStatus;
 import jsprit.core.problem.constraint.HardRouteConstraint;
@@ -27,20 +36,20 @@ import jsprit.core.problem.constraint.SoftActivityConstraint;
 import jsprit.core.problem.constraint.SoftRouteConstraint;
 import jsprit.core.problem.cost.VehicleRoutingTransportCosts;
 import jsprit.core.problem.driver.Driver;
+import jsprit.core.problem.job.Base;
 import jsprit.core.problem.job.Destination;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.misc.DestinationBaseContext;
 import jsprit.core.problem.misc.JobInsertionContext;
 import jsprit.core.problem.solution.route.VehicleRoute;
 import jsprit.core.problem.solution.route.activity.BaseService;
+import jsprit.core.problem.solution.route.activity.DefaultTourActivityFactory;
 import jsprit.core.problem.solution.route.activity.End;
 import jsprit.core.problem.solution.route.activity.Start;
 import jsprit.core.problem.solution.route.activity.TourActivity;
 import jsprit.core.problem.vehicle.Vehicle;
+import jsprit.core.problem.vehicle.VehicleImpl.NoVehicle;
 import jsprit.core.util.CalculationUtils;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 /**
  * Calculator that calculates the best insertion position for a {@link Destination}.
@@ -65,8 +74,13 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
 
     private AdditionalAccessEgressCalculator additionalAccessEgressCalculator;
 
+    private DestinationBaseLoadChecker destinationBaseLoadChecker;
+
+    private DefaultTourActivityFactory serviceActivityFactory;
+
     public DestinationInsertionCalculator(VehicleRoutingTransportCosts routingCosts, ActivityInsertionCostsCalculator
-            additionalTransportCostsCalculator, ConstraintManager constraintManager, JobActivityFactory aActivityFactory) {
+            additionalTransportCostsCalculator, ConstraintManager constraintManager,
+            JobActivityFactory aActivityFactory, DestinationBaseLoadChecker aDestinationBaseLoadChecker) {
         super();
         this.transportCosts = routingCosts;
         hardRouteLevelConstraint = constraintManager;
@@ -75,7 +89,9 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
         softRouteConstraint = constraintManager;
         this.additionalTransportCostsCalculator = additionalTransportCostsCalculator;
         activityFactory = aActivityFactory;
+        destinationBaseLoadChecker = aDestinationBaseLoadChecker;
         additionalAccessEgressCalculator = new AdditionalAccessEgressCalculator(routingCosts);
+        serviceActivityFactory = new DefaultTourActivityFactory();
         logger.debug("initialise {}", this);
     }
 
@@ -113,13 +129,51 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
 
         double bestCost = bestKnownCosts;
         additionalICostsAtRouteLevel += additionalAccessEgressCalculator.getCosts(insertionContext);
-
+        
         /*
         generate new start and end for new vehicle
          */
         Start start = new Start(newVehicle.getStartLocation(), newVehicle.getEarliestDeparture(), Double.MAX_VALUE);
         start.setEndTime(newVehicleDepartureTime);
         End end = new End(newVehicle.getEndLocation(), 0.0, newVehicle.getLatestArrival());
+        
+        if (destinationBaseLoadChecker.isBaseRequired(currentRoute)) {
+            List<TourActivity> activities = currentRoute.getActivities();
+            TourActivity prevAct;
+            if (activities.isEmpty()) {
+                prevAct = start;
+                insertionIndex = 0;
+            } else {
+                insertionIndex = activities.size() - 1;
+                prevAct = activities.get(insertionIndex);
+            }
+            
+            Location bestBaseLocation = findBestLocation(currentRoute, newVehicle, newDriver, deliveryAct2Insert, end);
+            Integer runNumber = destinationBaseLoadChecker.getRunCount(currentRoute);
+            if (Objects.isNull(runNumber)) {
+                runNumber = 0;
+            }
+            
+            Base selectedBase = destinationBaseLoadChecker.findBaseToInsert();
+            selectedBase.setLocation(bestBaseLocation);
+            selectedBase.setServiceDuration(destinationBaseLoadChecker.getUnloadDuration(newVehicle));
+            AbstractActivity baseActivity = serviceActivityFactory.createActivity(selectedBase);
+            
+            double additionalICostsAtActLevel = softActivityConstraint.getCosts(insertionContext, prevAct, deliveryAct2Insert, baseActivity, prevAct.getEndTime());
+            double additionalTransportationCosts = additionalTransportCostsCalculator.getCosts(insertionContext, prevAct, deliveryAct2Insert, baseActivity, prevAct.getEndTime());
+            double iterCost = additionalICostsAtRouteLevel + additionalICostsAtActLevel + additionalTransportationCosts;
+            
+            int deliveryInsertionIndex = insertionIndex + 1;
+            InsertionData insertionData = new InsertionData(iterCost, InsertionData.NO_INDEX, deliveryInsertionIndex, newVehicle, newDriver);
+            insertionData.setInsertionRunNumber(runNumber);
+            insertionData.getEvents().add(new InsertActivity(currentRoute, newVehicle, deliveryAct2Insert,
+                    deliveryInsertionIndex, baseActivity, bs->destinationBaseLoadChecker.takeBase(selectedBase)));
+            insertionData.getEvents().add(new SwitchVehicle(currentRoute, newVehicle, newVehicleDepartureTime));
+            insertionData.setVehicleDepartureTime(newVehicleDepartureTime);
+            insertionData.setBaseToInsert(selectedBase);
+            
+            return insertionData;
+        }
 
         TourActivity prevAct = start;
         double prevActStartTime = newVehicleDepartureTime;
@@ -133,6 +187,7 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
 //                && deliveryAct2Insert.getName().contains("dtw")) {
 //            sb = new StringBuilder("\n");
 //        }
+        Consumer<TourActivity> baseLocationUpdater = EmptyConsumer.INSTANCE;
         while (!tourEnd) {
             TourActivity nextAct;
             if (activityIterator.hasNext()) {
@@ -142,24 +197,53 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
                 tourEnd = true;
             }
             
-            if (nextAct instanceof BaseService) {
-                rewindRun = false;
-            }
             
             if (prevAct instanceof BaseService) {
                 destinationBaseContext.incrementRunNum();
+                rewindRun = false;
             }
             
             if (!rewindRun) {//omit constraints check for full runs                 
                 ConstraintsStatus status = hardActivityLevelConstraint.fulfilled(insertionContext, prevAct, deliveryAct2Insert, nextAct, prevActStartTime);
                 if (status.equals(ConstraintsStatus.FULFILLED)) {
                     //from job2insert induced costs at activity level
+//                    Location currentBaseLocation = null;
+//                    Location bestBaseLocation = null;
+//                    if (nextAct instanceof BaseService) {
+//                        int afterBaseIndex = actIndex + 1;
+//                        TourActivity afterBaseAct;
+//                        if (currentRoute.getActivities().size() == afterBaseIndex) {
+//                            afterBaseAct = end;
+//                        } else {
+//                            afterBaseAct = currentRoute.getActivities().get(afterBaseIndex);
+//                        }
+//                        bestBaseLocation = findBestLocation(currentRoute, newVehicle, newDriver, deliveryAct2Insert, afterBaseAct);
+//                        Base base = (Base) ((BaseService) nextAct).getJob();
+//                        currentBaseLocation = base.getLocation();
+//                        base.setLocation(bestBaseLocation);
+//                    }
                     double additionalICostsAtActLevel = softActivityConstraint.getCosts(insertionContext, prevAct, deliveryAct2Insert, nextAct, prevActStartTime);
                     double additionalTransportationCosts = additionalTransportCostsCalculator.getCosts(insertionContext, prevAct, nextAct, deliveryAct2Insert, prevActStartTime);
                     double iterCost = additionalICostsAtRouteLevel + additionalICostsAtActLevel + additionalTransportationCosts;
+//                    if (nextAct instanceof BaseService) {
+//                        Base base = (Base) ((BaseService) nextAct).getJob();
+//                        base.setLocation(currentBaseLocation);
+//                    }
                     if (iterCost < bestCost) {
                         bestCost = iterCost;
                         insertionIndex = actIndex;
+//                        if (nextAct instanceof BaseService) {
+//                            Location toChange = bestBaseLocation; 
+//                            baseLocationUpdater = new Consumer<TourActivity>() {
+//                                @Override
+//                                public void accept(TourActivity aT) {
+//                                    Base base = (Base) ((BaseService) nextAct).getJob();
+//                                    base.setLocation(toChange);
+//                                }
+//                            };
+//                        } else {
+//                            baseLocationUpdater = EmptyConsumer.INSTANCE;
+//                        }
                     }
 //                    if (sb != null) {
 //                       sb.append(String.format("%s|%s|%s|%s|%s|%s", actIndex, destinationBaseContext.getRunNum(), iterCost,
@@ -183,16 +267,109 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
 //            logger.info(sb.toString());
 //        }
         if (insertionIndex == InsertionData.NO_INDEX) {
-            logger.debug("Can`t insert destination {}. route {}", jobToInsert.getName(), currentRoute.prettyPrintActivitesWithCapacity());
+            logger.debug("Can`t insert destination {}. route {}", jobToInsert.getName(),
+                    currentRoute.prettyPrintActivitesWithCapacity());
             return InsertionData.createEmptyInsertionData();
         }
         InsertionData insertionData = new InsertionData(bestCost, InsertionData.NO_INDEX, insertionIndex, newVehicle, newDriver);
+        insertionData.setInsertionRunNumber(destinationBaseContext.getRunNum());
         insertionData.getEvents().add(new InsertActivity(currentRoute, newVehicle, deliveryAct2Insert, insertionIndex));
         insertionData.getEvents().add(new SwitchVehicle(currentRoute, newVehicle, newVehicleDepartureTime));
         insertionData.setVehicleDepartureTime(newVehicleDepartureTime);
         return insertionData;
     }
+
+    private Location findBestLocation(final VehicleRoute currentRoute, final Vehicle newVehicle, final Driver newDriver,
+            TourActivity aPrevBaseAct, TourActivity aPostBaseAct) {
+        List<Location> baseLocations;
+        if (currentRoute.getVehicle() instanceof NoVehicle) {
+            baseLocations = destinationBaseLoadChecker.getAllVehicleBaseLocations();
+        } else {
+            baseLocations = destinationBaseLoadChecker.getBaseLocations(currentRoute.getVehicle());
+        }
+        Double min = Double.MAX_VALUE;
+        Location bestBaseLocation = null;
+        for (Location possibleBaseLocation : baseLocations) {
+            double toBase = transportCosts.getTransportCost(aPrevBaseAct.getLocation(),
+                    possibleBaseLocation, 0d, newDriver, newVehicle);
+            double fromBase = transportCosts.getTransportCost(possibleBaseLocation,
+                    aPostBaseAct.getLocation(), 0d, newDriver, newVehicle);
+            double transportCost = toBase + fromBase; 
+            if (transportCost < min) {
+                bestBaseLocation = possibleBaseLocation;
+                min = transportCost; 
+            }
+        }
+        return bestBaseLocation;
+    }
     
+    @Override
+    public DestinationBaseLoadChecker getDestinationBaseLoadChecker() {
+        // TODO Auto-generated method stub
+        return destinationBaseLoadChecker;
+    }
     
+    public static class EmptyConsumer implements Consumer<TourActivity> {
+        public static final EmptyConsumer INSTANCE = new EmptyConsumer();
+        private EmptyConsumer() {
+        }
+        @Override
+        public void accept(TourActivity aT) {
+        }
+    }
+    
+//    @Override
+//    public void optimizeBases(VehicleRoute aRoute) {
+//        Vehicle vehicle = aRoute.getVehicle();
+//        Start start = new Start(vehicle.getStartLocation(), vehicle.getEarliestDeparture(), Double.MAX_VALUE);
+//        End end = new End(vehicle.getEndLocation(), 0.0, vehicle.getLatestArrival());
+//        TourActivity prev = null;
+//        TourActivity current = start;
+//        TourActivity next = null;
+//        Iterator<TourActivity> iterator = aRoute.getActivities().iterator();
+//        current = iterator.next();
+//        boolean routeEnd = false;
+//        while (!routeEnd) {
+//            if (iterator.hasNext()) {
+//                next = iterator.next();
+//            } else {
+//                next = end;
+//                routeEnd = true;
+//            }
+//            if (current instanceof BaseService) {
+//                if (Objects.isNull(prev) || Objects.isNull(current)) {
+//                    continue;
+//                }
+//                Location bestBaseLocation = findBestLocation(aRoute, prev, next);
+//                Base base = ((Base) ((BaseService) current).getJob());
+//                base.setLocation(bestBaseLocation);
+//            }
+//            prev = current;  
+//            current = next;
+//        }
+//    }
+//    
+//    
+//
+//    private Location findBestLocation(VehicleRoute aRoute, TourActivity prev, TourActivity next) {
+//        Double min = Double.MAX_VALUE;
+//        Location bestBaseLocation = null;
+//        for (Location possibleBaseLocation : destinationBaseLoadChecker.getBaseLocations()) {
+//            double toBase = transportCosts.getTransportCost(prev.getLocation(),
+//                    possibleBaseLocation, prev.getEndTime(), aRoute.getDriver(), aRoute.getVehicle());
+//            double transportTime = transportCosts.getTransportTime(prev.getLocation(), possibleBaseLocation, prev.getEndTime(),
+//                    aRoute.getDriver(), aRoute.getVehicle());
+//            Double mpsProceedTime = destinationBaseLoadChecker.getUnloadDuration(aRoute.getVehicle());
+//            double fromBaseEndTime = prev.getEndTime() + transportTime + mpsProceedTime;
+//            double fromBase = transportCosts.getTransportCost(possibleBaseLocation,
+//                    next.getLocation(), fromBaseEndTime, aRoute.getDriver(), aRoute.getVehicle());
+//            double total = toBase + fromBase;
+//            if (total < min) {
+//                bestBaseLocation = possibleBaseLocation;
+//                min = total; 
+//            }
+//        }
+//        return bestBaseLocation;
+//    }
 
 }

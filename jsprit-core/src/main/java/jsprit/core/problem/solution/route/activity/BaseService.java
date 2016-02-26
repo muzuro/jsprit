@@ -6,6 +6,7 @@ public class BaseService extends PickupService<Base> {
 
     public BaseService(Base aBase) {
         super(aBase);
+        setIndex(aBase.getIndex());
     }
     
     public BaseService(BaseService aBaseService) {

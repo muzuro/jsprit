@@ -182,7 +182,7 @@ public class Service extends AbstractJob {
 
     private final String type;
 
-    private final double serviceTime;
+    private double serviceTime;
 
     private final TimeWindow timeWindow;
 
@@ -192,7 +192,7 @@ public class Service extends AbstractJob {
 
     private final String name;
 
-    private final Location location;
+    private Location location;
 
     Service(Builder builder) {
         id = builder.id;
@@ -218,6 +218,10 @@ public class Service extends AbstractJob {
     public Location getLocation() {
         return location;
     }
+    
+    protected void setLocation(Location aLocation) {
+        location = aLocation;
+    }
 
 
     /**
@@ -227,6 +231,10 @@ public class Service extends AbstractJob {
      */
     public double getServiceDuration() {
         return serviceTime;
+    }
+    
+    protected void setServiceDuration(double aServiceTime) {
+        serviceTime = aServiceTime;
     }
 
     /**

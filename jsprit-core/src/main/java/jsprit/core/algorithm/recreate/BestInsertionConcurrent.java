@@ -16,18 +16,28 @@
  ******************************************************************************/
 package jsprit.core.algorithm.recreate;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+
 import jsprit.core.algorithm.recreate.InsertionData.NoInsertionFound;
 import jsprit.core.algorithm.recreate.listener.InsertionListeners;
 import jsprit.core.problem.VehicleRoutingProblem;
+import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.driver.Driver;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.VehicleRoute;
 import jsprit.core.problem.vehicle.Vehicle;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import java.util.*;
-import java.util.concurrent.*;
 
 
 /**
@@ -84,8 +94,9 @@ public final class BestInsertionConcurrent extends AbstractInsertionStrategy {
         super.random = random;
     }
 
-    public BestInsertionConcurrent(JobInsertionCostsCalculator jobInsertionCalculator, ExecutorService executorService, int nuOfBatches, VehicleRoutingProblem vehicleRoutingProblem) {
-        super(vehicleRoutingProblem);
+    public BestInsertionConcurrent(JobInsertionCostsCalculator jobInsertionCalculator, ExecutorService executorService,
+            int nuOfBatches, VehicleRoutingProblem vehicleRoutingProblem, DestinationBaseLoadChecker aDestinationBaseLoadChecker) {
+        super(vehicleRoutingProblem, aDestinationBaseLoadChecker);
         this.insertionsListeners = new InsertionListeners();
         this.nuOfBatches = nuOfBatches;
         bestInsertionCostCalculator = jobInsertionCalculator;
@@ -105,6 +116,7 @@ public final class BestInsertionConcurrent extends AbstractInsertionStrategy {
         Collections.shuffle(unassignedJobList, random);
         List<Batch> batches = distributeRoutes(vehicleRoutes, nuOfBatches);
         for (final Job unassignedJob : unassignedJobList) {
+            markRequiredRoutes(vehicleRoutes, unassignedJob);
             Insertion bestInsertion = null;
             double bestInsertionCost = Double.MAX_VALUE;
             for (final Batch batch : batches) {

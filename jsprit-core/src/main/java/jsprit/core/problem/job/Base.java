@@ -16,9 +16,14 @@
  ******************************************************************************/
 package jsprit.core.problem.job;
 
+import jsprit.core.problem.Location;
+import jsprit.core.problem.solution.route.activity.End;
+
 public class Base extends Service {
 
     public static class Builder extends Service.Builder<Base> {
+
+        private int index;
 
         /**
          * Returns a new instance of builder that builds a delivery.
@@ -48,10 +53,26 @@ public class Base extends Service {
             return new Base(this);
         }
 
+        public Builder setIndex(int aIndex) {
+            index = aIndex;
+            return this;
+        }
+
     }
 
     Base(Builder builder) {
         super(builder);
+        setIndex(builder.index);
     }
-
+    
+    @Override
+    public void setLocation(Location aLocation) {
+        super.setLocation(aLocation);
+    }
+    
+    @Override
+    public void setServiceDuration(double aServiceTime) {
+        super.setServiceDuration(aServiceTime);
+    }
+    
 }

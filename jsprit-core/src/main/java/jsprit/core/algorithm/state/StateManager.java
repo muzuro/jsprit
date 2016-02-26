@@ -21,6 +21,7 @@ import jsprit.core.algorithm.recreate.listener.*;
 import jsprit.core.algorithm.ruin.listener.RuinListener;
 import jsprit.core.algorithm.ruin.listener.RuinListeners;
 import jsprit.core.problem.VehicleRoutingProblem;
+import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.VehicleRoutingProblemSolution;
 import jsprit.core.problem.solution.route.ReverseRouteActivityVisitor;
@@ -28,6 +29,7 @@ import jsprit.core.problem.solution.route.RouteActivityVisitor;
 import jsprit.core.problem.solution.route.RouteVisitor;
 import jsprit.core.problem.solution.route.VehicleRoute;
 import jsprit.core.problem.solution.route.activity.ActivityVisitor;
+import jsprit.core.problem.solution.route.activity.BaseService;
 import jsprit.core.problem.solution.route.activity.ReverseActivityVisitor;
 import jsprit.core.problem.solution.route.activity.TourActivity;
 import jsprit.core.problem.solution.route.state.RouteAndActivityStateGetter;
@@ -88,7 +90,7 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
 
     private boolean updateTWs = false;
 
-    private final int initialNoStates = 21;
+    private final int initialNoStates = 23;
 
     private int stateIndexCounter;
 
@@ -154,9 +156,10 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
         this.vrp = vehicleRoutingProblem;
         nuActivities = Math.max(10, vrp.getNuActivities() + 1);
         nuVehicleTypeKeys = Math.max(3, getNuVehicleTypes(vrp) + 2);
-        activity_states = new Object[nuActivities][initialStateArrayLength];
+        int actSizeWithBase = nuActivities * 2;
+        activity_states = new Object[actSizeWithBase][initialStateArrayLength];
 //        route_states = new Object[nuActivities][initialStateArrayLength];
-        vehicle_dependent_activity_states = new Object[nuActivities][nuVehicleTypeKeys][initialStateArrayLength];
+        vehicle_dependent_activity_states = new Object[actSizeWithBase][nuVehicleTypeKeys][initialStateArrayLength];
 //        vehicle_dependent_route_states = new Object[nuActivities][nuVehicleTypeKeys][initialStateArrayLength];
         route_state_map = new HashMap<VehicleRoute, Object[]>();
         vehicle_dependent_route_state_map = new HashMap<VehicleRoute, Object[][]>();
@@ -484,7 +487,7 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
         putTypedInternalRouteState(route, vehicle, stateId, state);
     }
 
-    <T> void putTypedInternalRouteState(VehicleRoute route, StateId stateId, T state) {
+    public <T> void putTypedInternalRouteState(VehicleRoute route, StateId stateId, T state) {
         if (route.isEmpty()) return;
         if (!route_state_map.containsKey(route)) {
             route_state_map.put(route, new Object[stateIndexCounter]);

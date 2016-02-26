@@ -21,6 +21,7 @@ package jsprit.core.algorithm.ruin;
 import jsprit.core.algorithm.ruin.listener.RuinListener;
 import jsprit.core.algorithm.ruin.listener.RuinListeners;
 import jsprit.core.problem.VehicleRoutingProblem;
+import jsprit.core.problem.job.Base;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.VehicleRoute;
 import jsprit.core.util.RandomNumberGeneration;
@@ -99,7 +100,7 @@ public abstract class AbstractRuinStrategy implements RuinStrategy {
     }
 
     protected boolean removeJob(Job job, Collection<VehicleRoute> vehicleRoutes) {
-        if (jobIsInitial(job)) return false;
+        if (jobIsInitial(job) || job instanceof Base) return false;
         for (VehicleRoute route : vehicleRoutes) {
             if (removeJob(job, route)) {
                 return true;
@@ -113,7 +114,7 @@ public abstract class AbstractRuinStrategy implements RuinStrategy {
     }
 
     protected boolean removeJob(Job job, VehicleRoute route) {
-        if (jobIsInitial(job)) return false;
+        if (jobIsInitial(job) || job instanceof Base) return false;
         boolean removed = route.getTourActivities().removeJob(job);
         if (removed) {
             logger.trace("ruin: {}", job.getId());

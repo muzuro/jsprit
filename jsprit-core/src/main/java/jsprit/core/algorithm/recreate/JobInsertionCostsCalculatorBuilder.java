@@ -25,6 +25,7 @@ import jsprit.core.problem.AbstractActivity;
 import jsprit.core.problem.JobActivityFactory;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.constraint.ConstraintManager;
+import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.job.Base;
 import jsprit.core.problem.job.Delivery;
 import jsprit.core.problem.job.Destination;
@@ -98,6 +99,8 @@ public class JobInsertionCostsCalculatorBuilder {
     private boolean allowVehicleSwitch = true;
 
     private boolean addDefaultCostCalc = true;
+
+    private DestinationBaseLoadChecker destinationBaseLoadChecker;
 
     /**
      * Constructs the builder.
@@ -297,7 +300,7 @@ public class JobInsertionCostsCalculatorBuilder {
         ServiceInsertionCalculator serviceInsertion = new ServiceInsertionCalculator(vrp.getTransportCosts(), actInsertionCalc, constraintManager);
         serviceInsertion.setJobActivityFactory(activityFactory);
         DestinationInsertionCalculator destinationInsertion = new DestinationInsertionCalculator(vrp.getTransportCosts(),
-                actInsertionCalc, constraintManager, activityFactory);
+                actInsertionCalc, constraintManager, activityFactory, destinationBaseLoadChecker);
         BaseInsertionCalculator baseInsertion = new BaseInsertionCalculator(vrp.getTransportCosts(), constraintManager,
                 activityFactory);
 
@@ -368,6 +371,11 @@ public class JobInsertionCostsCalculatorBuilder {
         this.constraintManager = constraintManager;
         return this;
     }
+    
+    public JobInsertionCostsCalculatorBuilder setDestinationBaseLoadChecker(DestinationBaseLoadChecker aDestinationBaseLoadChecker) {
+        destinationBaseLoadChecker = aDestinationBaseLoadChecker;
+        return this;
+    } 
 
     public JobInsertionCostsCalculatorBuilder setAllowVehicleSwitch(boolean allowVehicleSwitch) {
         this.allowVehicleSwitch = allowVehicleSwitch;

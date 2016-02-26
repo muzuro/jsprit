@@ -22,6 +22,9 @@ import jsprit.core.problem.Skills;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 
 /**
  * Implementation of {@link Vehicle}.
@@ -119,6 +122,8 @@ public class VehicleImpl extends AbstractVehicle {
 
         private Location endLocation;
 
+        private LocalDate departureDate;
+
         private Builder(String id) {
             super();
             this.id = id;
@@ -134,6 +139,11 @@ public class VehicleImpl extends AbstractVehicle {
         public Builder setType(VehicleType type) {
             if (type == null) throw new IllegalStateException("type cannot be null.");
             this.type = type;
+            return this;
+        }
+        
+        public Builder setDepartureDate(LocalDate aDepartureDate) {
+            departureDate = aDepartureDate;
             return this;
         }
 
@@ -272,6 +282,8 @@ public class VehicleImpl extends AbstractVehicle {
 
     private final Location startLocation;
 
+    private LocalDate departureDate;
+
     private VehicleImpl(Builder builder) {
         id = builder.id;
         type = builder.type;
@@ -281,6 +293,7 @@ public class VehicleImpl extends AbstractVehicle {
         skills = builder.skills;
         endLocation = builder.endLocation;
         startLocation = builder.startLocation;
+        departureDate = builder.departureDate;
         setVehicleIdentifier(new VehicleTypeKey(type.getTypeId(), startLocation.getId(), endLocation.getId(), earliestDeparture, latestArrival, skills, returnToDepot));
     }
 
@@ -338,6 +351,10 @@ public class VehicleImpl extends AbstractVehicle {
     public Skills getSkills() {
         return skills;
     }
+    
+    public LocalDate getDepartureDate() {
+        return departureDate;
+    }
 
     /* (non-Javadoc)
      * @see java.lang.Object#hashCode()
@@ -375,6 +392,5 @@ public class VehicleImpl extends AbstractVehicle {
             return false;
         return true;
     }
-
-
+    
 }

@@ -19,6 +19,7 @@
 package jsprit.core.algorithm.recreate;
 
 import jsprit.core.problem.driver.Driver;
+import jsprit.core.problem.job.Destination;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.VehicleRoute;
 import jsprit.core.problem.vehicle.Vehicle;
@@ -40,5 +41,12 @@ class JobCalculatorSwitcher implements JobInsertionCostsCalculator {
         if (jic == null) throw new IllegalStateException("cannot find calculator for " + jobToInsert.getClass());
         return jic.getInsertionData(currentRoute, jobToInsert, newVehicle, newVehicleDepartureTime, newDriver, bestKnownScore);
     }
+    
+//    @Override
+//    public void optimizeBases(VehicleRoute aRoute) {
+//        JobInsertionCostsCalculator jic = calcMap.get(Destination.class);
+//        if (jic == null) throw new IllegalStateException("cannot find calculator for " + Destination.class);
+//        jic.optimizeBases(aRoute);
+//    }
 
 }

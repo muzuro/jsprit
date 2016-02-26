@@ -18,6 +18,7 @@ package jsprit.core.algorithm.recreate;
 
 import jsprit.core.algorithm.recreate.InsertionData.NoInsertionFound;
 import jsprit.core.problem.VehicleRoutingProblem;
+import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.VehicleRoute;
 import jsprit.core.util.NoiseMaker;
@@ -50,8 +51,9 @@ public final class BestInsertion extends AbstractInsertionStrategy {
 
     };
 
-    public BestInsertion(JobInsertionCostsCalculator jobInsertionCalculator, VehicleRoutingProblem vehicleRoutingProblem) {
-        super(vehicleRoutingProblem);
+    public BestInsertion(JobInsertionCostsCalculator jobInsertionCalculator,
+            VehicleRoutingProblem vehicleRoutingProblem, DestinationBaseLoadChecker aDestinationBaseLoadChecker) {
+        super(vehicleRoutingProblem, aDestinationBaseLoadChecker);
         bestInsertionCostCalculator = jobInsertionCalculator;
         logger.debug("initialise {}", this);
     }
@@ -67,6 +69,7 @@ public final class BestInsertion extends AbstractInsertionStrategy {
         List<Job> unassignedJobList = new ArrayList<Job>(unassignedJobs);
         Collections.shuffle(unassignedJobList, random);
         for (Job unassignedJob : unassignedJobList) {
+            markRequiredRoutes(vehicleRoutes, unassignedJob);
             Insertion bestInsertion = null;
             double bestInsertionCost = Double.MAX_VALUE;
             for (VehicleRoute vehicleRoute : vehicleRoutes) {

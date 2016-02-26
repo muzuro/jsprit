@@ -21,6 +21,7 @@ import jsprit.core.algorithm.recreate.RegretInsertion.DefaultScorer;
 import jsprit.core.algorithm.recreate.RegretInsertion.ScoredJob;
 import jsprit.core.algorithm.recreate.RegretInsertion.ScoringFunction;
 import jsprit.core.problem.VehicleRoutingProblem;
+import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.VehicleRoute;
 import org.apache.logging.log4j.LogManager;
@@ -63,8 +64,9 @@ public class RegretInsertionConcurrent extends AbstractInsertionStrategy {
         this.scoringFunction = scoringFunction;
     }
 
-    public RegretInsertionConcurrent(JobInsertionCostsCalculator jobInsertionCalculator, VehicleRoutingProblem vehicleRoutingProblem, ExecutorService executorService) {
-        super(vehicleRoutingProblem);
+    public RegretInsertionConcurrent(JobInsertionCostsCalculator jobInsertionCalculator, VehicleRoutingProblem vehicleRoutingProblem,
+            ExecutorService executorService, DestinationBaseLoadChecker aDestinationBaseLoadChecker) {
+        super(vehicleRoutingProblem, aDestinationBaseLoadChecker);
         this.scoringFunction = new DefaultScorer(vehicleRoutingProblem);
         this.insertionCostsCalculator = jobInsertionCalculator;
         this.vrp = vehicleRoutingProblem;
@@ -89,16 +91,18 @@ public class RegretInsertionConcurrent extends AbstractInsertionStrategy {
     public Collection<Job> insertUnassignedJobs(Collection<VehicleRoute> routes, Collection<Job> unassignedJobs) {
         List<Job> badJobs = new ArrayList<Job>(unassignedJobs.size());
         List<Job> jobs = new ArrayList<Job>(unassignedJobs);
-
+        
         while (!jobs.isEmpty()) {
             List<Job> unassignedJobList = new ArrayList<Job>(jobs);
             List<Job> badJobList = new ArrayList<Job>();
+            markRequiredRoutes(routes, jobs);
             ScoredJob bestScoredJob = nextJob(routes, unassignedJobList, badJobList);
             if (bestScoredJob != null) {
                 if (bestScoredJob.isNewRoute()) {
                     routes.add(bestScoredJob.getRoute());
                 }
-                insertJob(bestScoredJob.getJob(), bestScoredJob.getInsertionData(), bestScoredJob.getRoute());
+                InsertionData insertionData = bestScoredJob.getInsertionData();
+                insertJob(bestScoredJob.getJob(), insertionData, bestScoredJob.getRoute());
                 jobs.remove(bestScoredJob.getJob());
             }
             for (Job j : badJobList) {
@@ -106,6 +110,9 @@ public class RegretInsertionConcurrent extends AbstractInsertionStrategy {
                 badJobs.add(j);
             }
         }
+//        for (VehicleRoute route : routes) {
+//            insertionCostsCalculator.optimizeBases(route);
+//        }
         return badJobs;
     }
 

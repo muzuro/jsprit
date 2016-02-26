@@ -203,11 +203,11 @@ public class VehicleRoutingAlgorithm {
             counter.incCounter();
             SearchStrategy strategy = searchStrategyManager.getRandomStrategy();
             DiscoveredSolution discoveredSolution = strategy.run(problem, solutions);
-            
+            discoveredSolution.getSolution().setIterationNum(i);
             if (logger.isDebugEnabled()) {                
-                VehicleRoutingProblemSolution solution = discoveredSolution.getSolution();
-                VehicleRoute route = solution.getRoutes().iterator().next();
-                logger.debug("{} - {}", solution.getCost(), route.prettyPrintActivites());
+//                VehicleRoutingProblemSolution solution = discoveredSolution.getSolution();
+//                VehicleRoute route = solution.getRoutes().iterator().next();
+//                logger.debug("{} - {}", solution.getCost(), route.prettyPrintActivites());
             }
             
             if (logger.isTraceEnabled()) log(discoveredSolution);

@@ -19,6 +19,7 @@ package jsprit.core.algorithm.recreate;
 
 import jsprit.core.problem.Location;
 import jsprit.core.problem.VehicleRoutingProblem;
+import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.job.Service;
 import jsprit.core.problem.job.Shipment;
@@ -198,8 +199,9 @@ public class RegretInsertion extends AbstractInsertionStrategy {
         this.scoringFunction = scoringFunction;
     }
 
-    public RegretInsertion(JobInsertionCostsCalculator jobInsertionCalculator, VehicleRoutingProblem vehicleRoutingProblem) {
-        super(vehicleRoutingProblem);
+    public RegretInsertion(JobInsertionCostsCalculator jobInsertionCalculator, VehicleRoutingProblem vehicleRoutingProblem,
+            DestinationBaseLoadChecker aDestinationBaseLoadChecker) {
+        super(vehicleRoutingProblem, aDestinationBaseLoadChecker);
         this.scoringFunction = new DefaultScorer(vehicleRoutingProblem);
         this.insertionCostsCalculator = jobInsertionCalculator;
         this.vrp = vehicleRoutingProblem;
@@ -230,6 +232,7 @@ public class RegretInsertion extends AbstractInsertionStrategy {
         while (!jobs.isEmpty()) {
             List<Job> unassignedJobList = new ArrayList<Job>(jobs);
             List<Job> badJobList = new ArrayList<Job>();
+            markRequiredRoutes(routes, unassignedJobList);
             ScoredJob bestScoredJob = nextJob(routes, unassignedJobList, badJobList);
             if (bestScoredJob != null) {
                 String beforeInsert = bestScoredJob.getRoute().prettyPrintActivites();
@@ -252,6 +255,9 @@ public class RegretInsertion extends AbstractInsertionStrategy {
                 badJobs.add(bad);
             }
         }
+//        for (VehicleRoute route : routes) {
+//            insertionCostsCalculator.optimizeBases(route);
+//        }
         return badJobs;
     }
 
@@ -266,6 +272,7 @@ public class RegretInsertion extends AbstractInsertionStrategy {
     private ScoredJob nextJob(Collection<VehicleRoute> routes, List<Job> unassignedJobList, List<Job> badJobs) {
         ScoredJob bestScoredJob = null;
         for (Job unassignedJob : unassignedJobList) {
+            
             ScoredJob scoredJob = getScoredJob(routes, unassignedJob, insertionCostsCalculator, scoringFunction);
             if (scoredJob instanceof BadJob) {
                 badJobs.add(unassignedJob);

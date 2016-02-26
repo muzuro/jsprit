@@ -46,7 +46,7 @@ public class RegretInsertionTest {
         VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance().addJob(s1).addJob(s2).addVehicle(v).build();
 
         JobInsertionCostsCalculator calculator = getCalculator(vrp);
-        RegretInsertion regretInsertion = new RegretInsertion(calculator, vrp);
+        RegretInsertion regretInsertion = new RegretInsertion(calculator, vrp, null);
         Collection<VehicleRoute> routes = new ArrayList<VehicleRoute>();
 
         regretInsertion.insertJobs(routes, vrp.getJobs().values());
@@ -62,7 +62,7 @@ public class RegretInsertionTest {
         VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance().addJob(s1).addJob(s2).addVehicle(v).build();
 
         JobInsertionCostsCalculator calculator = getCalculator(vrp);
-        RegretInsertion regretInsertion = new RegretInsertion(calculator, vrp);
+        RegretInsertion regretInsertion = new RegretInsertion(calculator, vrp, null);
         Collection<VehicleRoute> routes = new ArrayList<VehicleRoute>();
 
         regretInsertion.insertJobs(routes, vrp.getJobs().values());
@@ -78,7 +78,7 @@ public class RegretInsertionTest {
         final VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance().addJob(s1).addJob(s2).addVehicle(v).build();
 
         JobInsertionCostsCalculator calculator = getCalculator(vrp);
-        RegretInsertion regretInsertion = new RegretInsertion(calculator, vrp);
+        RegretInsertion regretInsertion = new RegretInsertion(calculator, vrp, null);
         Collection<VehicleRoute> routes = new ArrayList<VehicleRoute>();
 
         CkeckJobSequence position = new CkeckJobSequence(2, s1);
@@ -103,7 +103,7 @@ public class RegretInsertionTest {
         final VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance().addJob(s1).addJob(s2).addVehicle(v).build();
 
         JobInsertionCostsCalculator calculator = getShipmentCalculator(vrp);
-        RegretInsertion regretInsertion = new RegretInsertion(calculator, vrp);
+        RegretInsertion regretInsertion = new RegretInsertion(calculator, vrp, null);
         Collection<VehicleRoute> routes = new ArrayList<VehicleRoute>();
 
         CkeckJobSequence position = new CkeckJobSequence(2, s2);

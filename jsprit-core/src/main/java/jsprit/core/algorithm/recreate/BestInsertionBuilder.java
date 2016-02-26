@@ -155,9 +155,9 @@ public class BestInsertionBuilder {
         JobInsertionCostsCalculator jobInsertions = calcBuilder.build();
         InsertionStrategy bestInsertion;
         if (executor == null) {
-            bestInsertion = new BestInsertion(jobInsertions, vrp);
+            bestInsertion = new BestInsertion(jobInsertions, vrp, null);
         } else {
-            bestInsertion = new BestInsertionConcurrent(jobInsertions, executor, nuOfThreads, vrp);
+            bestInsertion = new BestInsertionConcurrent(jobInsertions, executor, nuOfThreads, vrp, null);
         }
         for (InsertionListener l : iListeners) bestInsertion.addListener(l);
         return bestInsertion;

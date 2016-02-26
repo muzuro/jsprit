@@ -17,6 +17,7 @@
 package jsprit.core.algorithm.recreate;
 
 import jsprit.core.problem.driver.Driver;
+import jsprit.core.problem.job.Base;
 import jsprit.core.problem.vehicle.Vehicle;
 
 import java.util.ArrayList;
@@ -37,8 +38,18 @@ public class InsertionData {
         }
 
     }
+    
+    public static class RunsLoaded extends InsertionData {
+
+        public RunsLoaded() {
+            super(Double.MAX_VALUE, NO_INDEX, NO_INDEX, null, null);
+        }
+
+    }
 
     private static InsertionData noInsertion = new NoInsertionFound();
+    
+    private static InsertionData runsLoaded = new RunsLoaded();
 
     /**
      * Returns an instance of InsertionData that represents an EmptyInsertionData (which might indicate
@@ -50,6 +61,10 @@ public class InsertionData {
      */
     public static InsertionData createEmptyInsertionData() {
         return noInsertion;
+    }
+    
+    public static InsertionData createRunsLoadedData() {
+        return runsLoaded;
     }
 
     static int NO_INDEX = -1;
@@ -69,6 +84,10 @@ public class InsertionData {
     private double additionalTime;
 
     private List<Event> events = new ArrayList<Event>();
+    
+    private int insertionRunNumber;
+
+    private Base baseToInsert;
 
     List<Event> getEvents() {
         return events;
@@ -160,5 +179,20 @@ public class InsertionData {
         this.departureTime = departureTime;
     }
 
+    public int getInsertionRunNumber() {
+        return insertionRunNumber;
+    }
+
+    public void setInsertionRunNumber(int aInsertionRunNumber) {
+        insertionRunNumber = aInsertionRunNumber;
+    }
+
+    public void setBaseToInsert(Base aSelectedBase) {
+        baseToInsert = aSelectedBase;
+    }
+
+    public Base getBaseToInsert() {
+        return baseToInsert;
+    }
 
 }

@@ -21,21 +21,33 @@ package jsprit.core.algorithm.recreate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 
 import jsprit.core.algorithm.recreate.listener.InsertionListener;
 import jsprit.core.algorithm.recreate.listener.InsertionListeners;
+import jsprit.core.algorithm.state.UpdateActivityTimes;
 import jsprit.core.problem.AbstractActivity;
+import jsprit.core.problem.Location;
 import jsprit.core.problem.VehicleRoutingProblem;
+import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
+import jsprit.core.problem.cost.VehicleRoutingTransportCosts;
 import jsprit.core.problem.driver.Driver;
 import jsprit.core.problem.driver.DriverImpl;
 import jsprit.core.problem.job.Base;
 import jsprit.core.problem.job.Job;
+import jsprit.core.problem.solution.route.RouteActivityVisitor;
 import jsprit.core.problem.solution.route.VehicleRoute;
+import jsprit.core.problem.solution.route.activity.BaseService;
+import jsprit.core.problem.solution.route.activity.End;
+import jsprit.core.problem.solution.route.activity.Start;
+import jsprit.core.problem.solution.route.activity.TourActivity;
 import jsprit.core.problem.vehicle.Vehicle;
+import jsprit.core.util.ActivityTimeTracker.ActivityPolicy;
 import jsprit.core.util.RandomNumberGeneration;
+import jsprit.core.util.RouteUtils;
 
 import org.apache.commons.lang.Validate;
 import org.apache.logging.log4j.LogManager;
@@ -80,10 +92,13 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
     private EventListeners eventListeners;
 
     protected VehicleRoutingProblem vrp;
+    
+    protected DestinationBaseLoadChecker destinationBaseLoadChecker;
 
-    public AbstractInsertionStrategy(VehicleRoutingProblem vrp) {
+    public AbstractInsertionStrategy(VehicleRoutingProblem vrp, DestinationBaseLoadChecker aDestinationBaseLoadChecker) {
         this.insertionsListeners = new InsertionListeners();
         this.vrp = vrp;
+        destinationBaseLoadChecker = aDestinationBaseLoadChecker;
         eventListeners = new EventListeners();
     }
 
@@ -94,51 +109,90 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
     @Override
     public Collection<Job> insertJobs(Collection<VehicleRoute> vehicleRoutes, Collection<Job> unassignedJobs) {
         insertionsListeners.informInsertionStarts(vehicleRoutes, unassignedJobs);
-        List<Base> bases = new ArrayList<Base>();
         List<Job> notBases = new ArrayList<Job>();
         for (Job job : unassignedJobs) {
-            if (job instanceof Base) {
-                bases.add((Base) job);
-            } else {
-                notBases.add(job);
-            }
+            notBases.add(job);
         }
-        
-        insertBases(vehicleRoutes, bases);
+        destinationBaseLoadChecker.refreshFreeJobs(vehicleRoutes);
         Collection<Job> badJobs = insertUnassignedJobs(vehicleRoutes, notBases);
         insertionsListeners.informInsertionEndsListeners(vehicleRoutes);
+        vehicleRoutes.forEach(route->{
+            optimizeBases(route);
+            new RouteActivityVisitor().addActivityVisitor(new UpdateActivityTimes(vrp.getTransportCosts(),
+                    ActivityPolicy.AS_SOON_AS_ARRIVED)).visit(route);
+        });
+        
         return badJobs;
     }
-
-    private void insertBases(Collection<VehicleRoute> vehicleRoutes, Collection<Base> unassignedBases) {
-        if (unassignedBases.isEmpty()) {
-            return;
-        }
-        VehicleRoute route; 
-        if (vehicleRoutes.size() == 0) {
-            route = VehicleRoute.emptyRoute();
-            vehicleRoutes.add(route);
-        } else if (vehicleRoutes.size() == 1) {
-            route = vehicleRoutes.iterator().next();
-        } else {
-            throw new IllegalStateException("Only one route currently supported");
-        }
-        Validate.isTrue(vrp.getVehicles().size() == 1);
-        Vehicle vehicle = vrp.getVehicles().iterator().next();
-        for (Base base : unassignedBases) {
-            InsertionData iData = getJobInsertionCostsCalculator().getInsertionData(route, base, vehicle,
-                    route.getDepartureTime(), DriverImpl.noDriver(), Double.MAX_VALUE);
-//            int lastIndex = route.getActivities().size();
-//            InsertionData iData = new InsertionData(0, lastIndex, lastIndex, vehicle, route.getDriver());
-//            iData.getEvents().add(new SwitchVehicle(route, vehicle, route.getDepartureTime()));
-//            AbstractActivity activity = vrp.copyAndGetActivities(base).iterator().next();
-//            iData.getEvents().add(new InsertActivity(route, vehicle, activity, lastIndex));
-            insertJob(base, iData, route);
+    
+    public void optimizeBases(VehicleRoute aRoute) {
+        Vehicle vehicle = aRoute.getVehicle();
+        Start start = new Start(vehicle.getStartLocation(), vehicle.getEarliestDeparture(), Double.MAX_VALUE);
+        End end = new End(vehicle.getEndLocation(), 0.0, vehicle.getLatestArrival());
+        TourActivity prev = null;
+        TourActivity current = start;
+        TourActivity next = null;
+        Iterator<TourActivity> iterator = aRoute.getActivities().iterator();
+        current = iterator.next();
+        boolean routeEnd = false;
+        while (!routeEnd) {
+            if (iterator.hasNext()) {
+                next = iterator.next();
+            } else {
+                next = end;
+                routeEnd = true;
+            }
+            if (current instanceof BaseService) {
+                if (Objects.isNull(prev) || Objects.isNull(current)) {
+                    continue;
+                }
+                Location bestBaseLocation = findBestLocation(aRoute, prev, next);
+                Base base = ((Base) ((BaseService) current).getJob());
+                base.setLocation(bestBaseLocation);
+            }
+            prev = current;  
+            current = next;
         }
     }
     
+    private Location findBestLocation(VehicleRoute aRoute, TourActivity prev, TourActivity next) {
+        VehicleRoutingTransportCosts transportCosts = vrp.getTransportCosts();
+        Double min = Double.MAX_VALUE;
+        Location bestBaseLocation = null;
+        for (Location possibleBaseLocation : destinationBaseLoadChecker.getBaseLocations(aRoute.getVehicle())) {
+            double toBase = transportCosts.getTransportCost(prev.getLocation(),
+                    possibleBaseLocation, prev.getEndTime(), aRoute.getDriver(), aRoute.getVehicle());
+            double transportTime = transportCosts.getTransportTime(prev.getLocation(), possibleBaseLocation, prev.getEndTime(),
+                    aRoute.getDriver(), aRoute.getVehicle());
+            Double mpsProceedTime = destinationBaseLoadChecker.getUnloadDuration(aRoute.getVehicle());
+            double fromBaseEndTime = prev.getEndTime() + transportTime + mpsProceedTime;
+            double fromBase = transportCosts.getTransportCost(possibleBaseLocation,
+                    next.getLocation(), fromBaseEndTime, aRoute.getDriver(), aRoute.getVehicle());
+            double total = toBase + fromBase;
+            if (total < min) {
+                bestBaseLocation = possibleBaseLocation;
+                min = total; 
+            }
+        }
+        return bestBaseLocation;
+    }
+
     public abstract Collection<Job> insertUnassignedJobs(Collection<VehicleRoute> vehicleRoutes, Collection<Job> unassignedJobs);
 
+    protected void markRequiredRoutes(Collection<VehicleRoute> routes, List<Job> jobs) {
+        for (VehicleRoute route : routes) {
+            boolean anySuitable = jobs.stream().anyMatch(j->!destinationBaseLoadChecker.isLoaded(j, route));
+            destinationBaseLoadChecker.markBaseRequired(route, !anySuitable);
+        }
+    }
+    
+    protected void markRequiredRoutes(Collection<VehicleRoute> routes, Job aToInsert) {
+        for (VehicleRoute route : routes) {
+            boolean loaded = destinationBaseLoadChecker.isLoaded(aToInsert, route);
+            destinationBaseLoadChecker.markBaseRequired(route, loaded);
+        }
+    }
+    
     @Override
     public void removeListener(InsertionListener insertionListener) {
         insertionsListeners.removeListener(insertionListener);

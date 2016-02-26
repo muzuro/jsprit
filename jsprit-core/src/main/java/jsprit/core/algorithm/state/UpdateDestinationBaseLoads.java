@@ -16,28 +16,35 @@
  ******************************************************************************/
 package jsprit.core.algorithm.state;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
-import jsprit.core.algorithm.recreate.listener.InsertionStartsListener;
 import jsprit.core.algorithm.recreate.listener.JobInsertedListener;
 import jsprit.core.algorithm.ruin.listener.RuinListener;
 import jsprit.core.problem.Capacity;
+import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.job.Base;
 import jsprit.core.problem.job.Destination;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.VehicleRoute;
-import jsprit.core.problem.solution.route.activity.ActivityVisitor;
 import jsprit.core.problem.solution.route.activity.PickupService;
-import jsprit.core.problem.solution.route.activity.TourActivity;
 
-class UpdateDestinationBaseLoads implements JobInsertedListener, RuinListener {
+public class UpdateDestinationBaseLoads implements JobInsertedListener, RuinListener {
 
     private StateManager stateManager;
+    private DestinationBaseLoadChecker destinationBaseLoadChecker;
 
     public UpdateDestinationBaseLoads(StateManager stateManager) {
         super();
         this.stateManager = stateManager;
+    }
+    
+    public UpdateDestinationBaseLoads(StateManager stateManager, DestinationBaseLoadChecker destinationBaseLoadChecker) {
+        super();
+        this.stateManager = stateManager;
+        this.destinationBaseLoadChecker = destinationBaseLoadChecker;
     }
 
     void refreshRuns(VehicleRoute route) {
@@ -55,7 +62,7 @@ class UpdateDestinationBaseLoads implements JobInsertedListener, RuinListener {
                 runNum++;
             }
         }
-        
+        stateManager.putTypedInternalRouteState(route, InternalStates.DestinationBase.RUN_COUNT, runNum);
     }
 
     @Override
@@ -72,7 +79,27 @@ class UpdateDestinationBaseLoads implements JobInsertedListener, RuinListener {
     public void ruinEnds(Collection<VehicleRoute> routes, Collection<Job> unassignedJobs) {
         for (VehicleRoute route : routes) {
             refreshRuns(route);
+            clearDoubleBases(route);
         }
+    }
+
+    private void clearDoubleBases(VehicleRoute route) {
+        List<PickupService> activities = (List) route.getActivities();
+        Job prevJob = null;
+        List<Base> toDelete = new ArrayList<>(); 
+        for (PickupService ta : activities) {
+            Job currJob = ta.getJob();
+            boolean doubleBases = currJob instanceof Base && prevJob instanceof Base;
+            boolean afterStart = currJob instanceof Base && Objects.isNull(prevJob);
+            if (doubleBases || afterStart) {
+                toDelete.add((Base)currJob);
+            }
+            prevJob = currJob;
+        }
+        toDelete.forEach(job->{
+            route.getTourActivities().removeJob(job);
+            destinationBaseLoadChecker.releaseBase(job);
+        });
     }
 
     @Override

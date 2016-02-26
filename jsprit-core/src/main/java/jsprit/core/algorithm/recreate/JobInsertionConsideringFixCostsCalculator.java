@@ -132,5 +132,10 @@ final class JobInsertionConsideringFixCostsCalculator implements JobInsertionCos
     public double getCosts(JobInsertionContext insertionContext) {
         return getFixCostContribution(insertionContext.getRoute(), insertionContext.getJob(), insertionContext.getNewVehicle());
     }
+    
+//    @Override
+//    public void optimizeBases(VehicleRoute aRoute) {
+//        standardServiceInsertion.optimizeBases(aRoute);
+//    }
 
 }

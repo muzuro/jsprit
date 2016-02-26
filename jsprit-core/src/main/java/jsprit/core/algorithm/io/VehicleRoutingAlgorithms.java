@@ -42,6 +42,7 @@ import jsprit.core.algorithm.termination.VariationCoefficientTermination;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.VehicleRoutingProblem.FleetSize;
 import jsprit.core.problem.constraint.ConstraintManager;
+import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.solution.SolutionCostCalculator;
 import jsprit.core.problem.solution.VehicleRoutingProblemSolution;
 import jsprit.core.problem.solution.route.VehicleRoute;
@@ -735,7 +736,8 @@ public class VehicleRoutingAlgorithms {
         InsertionStrategy insertionStrategy = definedClasses.get(insertionStrategyKey);
         if (insertionStrategy == null) {
             List<PrioritizedVRAListener> prioListeners = new ArrayList<PrioritizedVRAListener>();
-            insertionStrategy = createInsertionStrategy(modConfig, vrp, vehicleFleetManager, routeStates, prioListeners, executorService, nuOfThreads, constraintManager, addDefaultCostCalculators);
+            insertionStrategy = createInsertionStrategy(modConfig, vrp, vehicleFleetManager, routeStates,
+                    prioListeners, executorService, nuOfThreads, constraintManager, addDefaultCostCalculators, null);
             algorithmListeners.addAll(prioListeners);
             definedClasses.put(insertionStrategyKey, insertionStrategy);
         }
@@ -867,7 +869,8 @@ public class VehicleRoutingAlgorithms {
                 List<HierarchicalConfiguration> insertionConfigs = moduleConfig.configurationsAt("insertion");
                 if (insertionConfigs.size() != 1) throw new IllegalStateException("this should be 1");
                 List<PrioritizedVRAListener> prioListeners = new ArrayList<PrioritizedVRAListener>();
-                insertion = createInsertionStrategy(insertionConfigs.get(0), vrp, vehicleFleetManager, routeStates, prioListeners, executorService, nuOfThreads, constraintManager, addDefaultCostCalculators);
+                insertion = createInsertionStrategy(insertionConfigs.get(0), vrp, vehicleFleetManager, routeStates,
+                        prioListeners, executorService, nuOfThreads, constraintManager, addDefaultCostCalculators, null);
                 algorithmListeners.addAll(prioListeners);
             }
             final InsertionStrategy final_insertion = insertion;
@@ -903,8 +906,12 @@ public class VehicleRoutingAlgorithms {
         return ruin;
     }
 
-    private static InsertionStrategy createInsertionStrategy(HierarchicalConfiguration moduleConfig, VehicleRoutingProblem vrp, VehicleFleetManager vehicleFleetManager, StateManager routeStates, List<PrioritizedVRAListener> algorithmListeners, ExecutorService executorService, int nuOfThreads, ConstraintManager constraintManager, boolean addDefaultCostCalculators) {
-        return InsertionFactory.createInsertion(vrp, moduleConfig, vehicleFleetManager, routeStates, algorithmListeners, executorService, nuOfThreads, constraintManager, addDefaultCostCalculators);
+    private static InsertionStrategy createInsertionStrategy(HierarchicalConfiguration moduleConfig,
+            VehicleRoutingProblem vrp, VehicleFleetManager vehicleFleetManager, StateManager routeStates,
+            List<PrioritizedVRAListener> algorithmListeners, ExecutorService executorService, int nuOfThreads,
+            ConstraintManager constraintManager, boolean addDefaultCostCalculators, DestinationBaseLoadChecker aDblc) {
+        return InsertionFactory.createInsertion(vrp, moduleConfig, vehicleFleetManager, routeStates, algorithmListeners,
+                executorService, nuOfThreads, constraintManager, addDefaultCostCalculators, aDblc);
     }
 
 

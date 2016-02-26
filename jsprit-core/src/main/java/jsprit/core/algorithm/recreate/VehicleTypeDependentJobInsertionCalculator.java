@@ -18,6 +18,7 @@ package jsprit.core.algorithm.recreate;
 
 import jsprit.core.algorithm.recreate.InsertionData.NoInsertionFound;
 import jsprit.core.problem.VehicleRoutingProblem;
+import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.driver.Driver;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.VehicleRoute;
@@ -126,4 +127,14 @@ final class VehicleTypeDependentJobInsertionCalculator implements JobInsertionCo
         return initialVehicleIds.contains(selectedVehicle.getId());
     }
 
+    @Override
+    public DestinationBaseLoadChecker getDestinationBaseLoadChecker() {
+        return insertionCalculator.getDestinationBaseLoadChecker();
+    }
+    
+//    @Override
+//    public void optimizeBases(VehicleRoute aRoute) {
+//        insertionCalculator.optimizeBases(aRoute);
+//    }
+    
 }

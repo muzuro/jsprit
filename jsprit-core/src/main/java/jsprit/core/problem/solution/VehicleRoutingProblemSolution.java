@@ -45,6 +45,8 @@ public class VehicleRoutingProblemSolution {
     private Collection<Job> unassignedJobs = new ArrayList<Job>();
 
     private double cost;
+    
+    private int iterationNum;
 
     private VehicleRoutingProblemSolution(VehicleRoutingProblemSolution solution) {
         routes = new ArrayList<VehicleRoute>();
@@ -121,5 +123,13 @@ public class VehicleRoutingProblemSolution {
     @Override
     public String toString() {
         return "[costs=" + cost + "][routes=" + routes.size() + "][unassigned=" + unassignedJobs.size() + "]";
+    }
+
+    public int getIterationNum() {
+        return iterationNum;
+    }
+
+    public void setIterationNum(int aIterationNum) {
+        iterationNum = aIterationNum;
     }
 }

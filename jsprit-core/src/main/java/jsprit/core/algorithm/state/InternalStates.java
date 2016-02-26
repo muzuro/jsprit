@@ -61,7 +61,13 @@ public class InternalStates {
         
         public static final StateId PAST_LATENESS = new StateFactory.StateIdImpl("dest_past_waiting", 18);
         
-        public static final StateId TIMEWINDOWLESS_COUNT_WEIGTH = new StateFactory.StateIdImpl("timewindowless_count_weigth", 18);
+        public static final StateId TIMEWINDOWLESS_COUNT_WEIGTH = new StateFactory.StateIdImpl("timewindowless_count_weigth", 19);
+        
+        public static final StateId RUN_COUNT = new StateFactory.StateIdImpl("run_count", 20);
+        
+        public static final StateId BASE_REQUIRED = new StateFactory.StateIdImpl("base_required", 21);
+        
+        public static final StateId BASE_IN_ROUTE = new StateFactory.StateIdImpl("base_required", 22);
     }
     
 }
