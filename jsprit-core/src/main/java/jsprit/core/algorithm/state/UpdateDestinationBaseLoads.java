@@ -24,23 +24,17 @@ import java.util.Objects;
 import jsprit.core.algorithm.recreate.listener.JobInsertedListener;
 import jsprit.core.algorithm.ruin.listener.RuinListener;
 import jsprit.core.problem.Capacity;
-import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.job.Base;
 import jsprit.core.problem.job.Destination;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.VehicleRoute;
 import jsprit.core.problem.solution.route.activity.PickupService;
 
-public class UpdateDestinationBaseLoads implements JobInsertedListener, RuinListener {
+class UpdateDestinationBaseLoads implements JobInsertedListener, RuinListener {
 
     private StateManager stateManager;
     private DestinationBaseLoadChecker destinationBaseLoadChecker;
 
-    public UpdateDestinationBaseLoads(StateManager stateManager) {
-        super();
-        this.stateManager = stateManager;
-    }
-    
     public UpdateDestinationBaseLoads(StateManager stateManager, DestinationBaseLoadChecker destinationBaseLoadChecker) {
         super();
         this.stateManager = stateManager;

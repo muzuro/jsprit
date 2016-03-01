@@ -17,20 +17,19 @@
 
 package jsprit.core.algorithm.recreate;
 
-import jsprit.core.problem.Location;
-import jsprit.core.problem.VehicleRoutingProblem;
-import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
-import jsprit.core.problem.job.Job;
-import jsprit.core.problem.job.Service;
-import jsprit.core.problem.job.Shipment;
-import jsprit.core.problem.solution.route.VehicleRoute;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+
+import jsprit.core.problem.Location;
+import jsprit.core.problem.VehicleRoutingProblem;
+import jsprit.core.problem.job.Job;
+import jsprit.core.problem.job.Service;
+import jsprit.core.problem.job.Shipment;
+import jsprit.core.problem.solution.route.VehicleRoute;
 
 /**
  * Insertion based on regret approach.
@@ -199,9 +198,8 @@ public class RegretInsertion extends AbstractInsertionStrategy {
         this.scoringFunction = scoringFunction;
     }
 
-    public RegretInsertion(JobInsertionCostsCalculator jobInsertionCalculator, VehicleRoutingProblem vehicleRoutingProblem,
-            DestinationBaseLoadChecker aDestinationBaseLoadChecker) {
-        super(vehicleRoutingProblem, aDestinationBaseLoadChecker);
+    public RegretInsertion(JobInsertionCostsCalculator jobInsertionCalculator, VehicleRoutingProblem vehicleRoutingProblem) {
+        super(vehicleRoutingProblem);
         this.scoringFunction = new DefaultScorer(vehicleRoutingProblem);
         this.insertionCostsCalculator = jobInsertionCalculator;
         this.vrp = vehicleRoutingProblem;

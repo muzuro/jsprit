@@ -1,4 +1,4 @@
-package jsprit.core.problem.constraint;
+package jsprit.core.algorithm.state;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -9,8 +9,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import jsprit.core.algorithm.state.InternalStates;
-import jsprit.core.algorithm.state.StateManager;
 import jsprit.core.problem.Capacity;
 import jsprit.core.problem.Location;
 import jsprit.core.problem.VehicleRoutingProblem;
@@ -39,7 +37,7 @@ public class DestinationBaseLoadChecker {
     
     private final Double defaultUnloadDuration;
 
-    public DestinationBaseLoadChecker(StateManager aStateManager, Capacity aFirstRunCapacity,
+    DestinationBaseLoadChecker(StateManager aStateManager, Capacity aFirstRunCapacity,
             List<Location>[] aBases, Map<String, Double> aUnloadDurations) {
         defaultValue = Capacity.Builder.newInstance().build();
         stateManager = aStateManager;
@@ -70,7 +68,7 @@ public class DestinationBaseLoadChecker {
                 vehicleCapacity = firstRunCapacity;
             }
             
-            if (vehicleCapacity.isGreater(Capacity.addup(aJob.getSize(), runLoad))) {
+            if (vehicleCapacity.isGreaterOrEqual(Capacity.addup(aJob.getSize(), runLoad))) {
                 return false;//хотяб один рейс не заполнен
             }
         }

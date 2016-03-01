@@ -32,8 +32,8 @@ import java.util.concurrent.Future;
 
 import jsprit.core.algorithm.recreate.InsertionData.NoInsertionFound;
 import jsprit.core.algorithm.recreate.listener.InsertionListeners;
+import jsprit.core.algorithm.state.DestinationBaseLoadChecker;
 import jsprit.core.problem.VehicleRoutingProblem;
-import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.driver.Driver;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.VehicleRoute;
@@ -95,8 +95,8 @@ public final class BestInsertionConcurrent extends AbstractInsertionStrategy {
     }
 
     public BestInsertionConcurrent(JobInsertionCostsCalculator jobInsertionCalculator, ExecutorService executorService,
-            int nuOfBatches, VehicleRoutingProblem vehicleRoutingProblem, DestinationBaseLoadChecker aDestinationBaseLoadChecker) {
-        super(vehicleRoutingProblem, aDestinationBaseLoadChecker);
+            int nuOfBatches, VehicleRoutingProblem vehicleRoutingProblem) {
+        super(vehicleRoutingProblem);
         this.insertionsListeners = new InsertionListeners();
         this.nuOfBatches = nuOfBatches;
         bestInsertionCostCalculator = jobInsertionCalculator;

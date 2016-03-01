@@ -16,7 +16,6 @@
  ******************************************************************************/
 package jsprit.core.algorithm.recreate;
 
-import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.driver.Driver;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.VehicleRoute;
@@ -26,12 +25,5 @@ import jsprit.core.problem.vehicle.Vehicle;
 public interface JobInsertionCostsCalculator {
 
     public InsertionData getInsertionData(VehicleRoute currentRoute, Job newJob, Vehicle newVehicle, double newVehicleDepartureTime, Driver newDriver, double bestKnownCosts);
-    
-    default DestinationBaseLoadChecker getDestinationBaseLoadChecker() {
-        return null;
-    }
-
-//    default void optimizeBases(VehicleRoute aRoute) {
-//    }
 
 }

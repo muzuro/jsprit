@@ -28,11 +28,11 @@ import java.util.Random;
 
 import jsprit.core.algorithm.recreate.listener.InsertionListener;
 import jsprit.core.algorithm.recreate.listener.InsertionListeners;
+import jsprit.core.algorithm.state.DestinationBaseLoadChecker;
 import jsprit.core.algorithm.state.UpdateActivityTimes;
 import jsprit.core.problem.AbstractActivity;
 import jsprit.core.problem.Location;
 import jsprit.core.problem.VehicleRoutingProblem;
-import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.cost.VehicleRoutingTransportCosts;
 import jsprit.core.problem.driver.Driver;
 import jsprit.core.problem.driver.DriverImpl;
@@ -92,13 +92,10 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
     private EventListeners eventListeners;
 
     protected VehicleRoutingProblem vrp;
-    
-    protected DestinationBaseLoadChecker destinationBaseLoadChecker;
 
-    public AbstractInsertionStrategy(VehicleRoutingProblem vrp, DestinationBaseLoadChecker aDestinationBaseLoadChecker) {
+    public AbstractInsertionStrategy(VehicleRoutingProblem vrp) {
         this.insertionsListeners = new InsertionListeners();
         this.vrp = vrp;
-        destinationBaseLoadChecker = aDestinationBaseLoadChecker;
         eventListeners = new EventListeners();
     }
 
@@ -113,7 +110,7 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
         for (Job job : unassignedJobs) {
             notBases.add(job);
         }
-        destinationBaseLoadChecker.refreshFreeJobs(vehicleRoutes);
+        vrp.getDestinationBaseLoadChecker().refreshFreeJobs(vehicleRoutes);
         Collection<Job> badJobs = insertUnassignedJobs(vehicleRoutes, notBases);
         insertionsListeners.informInsertionEndsListeners(vehicleRoutes);
         vehicleRoutes.forEach(route->{
@@ -156,6 +153,7 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
     }
     
     private Location findBestLocation(VehicleRoute aRoute, TourActivity prev, TourActivity next) {
+        DestinationBaseLoadChecker destinationBaseLoadChecker = vrp.getDestinationBaseLoadChecker();
         VehicleRoutingTransportCosts transportCosts = vrp.getTransportCosts();
         Double min = Double.MAX_VALUE;
         Location bestBaseLocation = null;
@@ -180,6 +178,7 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
     public abstract Collection<Job> insertUnassignedJobs(Collection<VehicleRoute> vehicleRoutes, Collection<Job> unassignedJobs);
 
     protected void markRequiredRoutes(Collection<VehicleRoute> routes, List<Job> jobs) {
+        DestinationBaseLoadChecker destinationBaseLoadChecker = vrp.getDestinationBaseLoadChecker();
         for (VehicleRoute route : routes) {
             boolean anySuitable = jobs.stream().anyMatch(j->!destinationBaseLoadChecker.isLoaded(j, route));
             destinationBaseLoadChecker.markBaseRequired(route, !anySuitable);
@@ -187,6 +186,7 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
     }
     
     protected void markRequiredRoutes(Collection<VehicleRoute> routes, Job aToInsert) {
+        DestinationBaseLoadChecker destinationBaseLoadChecker = vrp.getDestinationBaseLoadChecker();
         for (VehicleRoute route : routes) {
             boolean loaded = destinationBaseLoadChecker.isLoaded(aToInsert, route);
             destinationBaseLoadChecker.markBaseRequired(route, loaded);

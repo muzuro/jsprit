@@ -1,21 +1,36 @@
 package jsprit.core.algorithm.box;
 
+import java.util.Collection;
+import java.util.Properties;
+import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import jsprit.core.algorithm.PrettyAlgorithmBuilder;
 import jsprit.core.algorithm.SearchStrategy;
 import jsprit.core.algorithm.VehicleRoutingAlgorithm;
 import jsprit.core.algorithm.acceptor.SchrimpfAcceptance;
-import jsprit.core.algorithm.box.Jsprit.Builder;
 import jsprit.core.algorithm.listener.AlgorithmEndsListener;
 import jsprit.core.algorithm.listener.IterationStartsListener;
 import jsprit.core.algorithm.module.RuinAndRecreateModule;
-import jsprit.core.algorithm.recreate.*;
-import jsprit.core.algorithm.ruin.*;
+import jsprit.core.algorithm.recreate.AbstractInsertionStrategy;
+import jsprit.core.algorithm.recreate.BestInsertion;
+import jsprit.core.algorithm.recreate.BestInsertionConcurrent;
+import jsprit.core.algorithm.recreate.InsertionBuilder;
+import jsprit.core.algorithm.recreate.RegretInsertion;
+import jsprit.core.algorithm.recreate.RegretInsertionConcurrent;
+import jsprit.core.algorithm.ruin.JobNeighborhoods;
+import jsprit.core.algorithm.ruin.JobNeighborhoodsFactory;
+import jsprit.core.algorithm.ruin.RuinClusters;
+import jsprit.core.algorithm.ruin.RuinRadial;
+import jsprit.core.algorithm.ruin.RuinRandom;
+import jsprit.core.algorithm.ruin.RuinShareFactory;
+import jsprit.core.algorithm.ruin.RuinWorst;
 import jsprit.core.algorithm.ruin.distance.AvgServiceAndShipmentDistance;
 import jsprit.core.algorithm.selector.SelectBest;
 import jsprit.core.algorithm.state.StateManager;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.constraint.ConstraintManager;
-import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.solution.SolutionCostCalculator;
 import jsprit.core.problem.solution.VehicleRoutingProblemSolution;
 import jsprit.core.problem.solution.route.VehicleRoute;
@@ -26,12 +41,6 @@ import jsprit.core.problem.vehicle.VehicleFleetManager;
 import jsprit.core.util.NoiseMaker;
 import jsprit.core.util.RandomNumberGeneration;
 import jsprit.core.util.Solutions;
-
-import java.util.Collection;
-import java.util.Properties;
-import java.util.Random;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 
 public class Jsprit {
@@ -133,8 +142,6 @@ public class Jsprit {
 
         private Random random = RandomNumberGeneration.newInstance();
 
-        private DestinationBaseLoadChecker destinationBaseLoadChecker;
-
         public static Builder newInstance(VehicleRoutingProblem vrp) {
             return new Builder(vrp);
         }
@@ -228,11 +235,6 @@ public class Jsprit {
             return this;
         }
 
-        public Builder setDestinationBaseLoadChecker(DestinationBaseLoadChecker aDestinationBaseLoadChecker) {
-            destinationBaseLoadChecker = aDestinationBaseLoadChecker;
-            return this;
-        }
-        
         public VehicleRoutingAlgorithm buildAlgorithm() {
             return new Jsprit(this).create(vrp);
         }
@@ -293,8 +295,6 @@ public class Jsprit {
 
     private Random random;
 
-    private DestinationBaseLoadChecker destinationBaseLoadChecker;
-
     private Jsprit(Builder builder) {
         this.stateManager = builder.stateManager;
         this.constraintManager = builder.constraintManager;
@@ -304,7 +304,6 @@ public class Jsprit {
         this.properties = builder.properties;
         this.objectiveFunction = builder.objectiveFunction;
         this.random = builder.random;
-        this.destinationBaseLoadChecker = builder.destinationBaseLoadChecker;
     }
 
     private VehicleRoutingAlgorithm create(final VehicleRoutingProblem vrp) {
@@ -394,10 +393,9 @@ public class Jsprit {
                 es = Executors.newFixedThreadPool(noThreads);
             }
         }
-        destinationBaseLoadChecker.initBaseIndex(vrp);
         if (es != null) {
             RegretInsertionConcurrent regretInsertion = (RegretInsertionConcurrent) new InsertionBuilder(vrp, fm,
-                    stateManager, constraintManager, destinationBaseLoadChecker)
+                    stateManager, constraintManager/*, destinationBaseLoadChecker*/)
                 .setInsertionStrategy(InsertionBuilder.Strategy.REGRET)
                 .setConcurrentMode(es, noThreads)
                 .considerFixedCosts(toDouble(getProperty(Parameter.FIXED_COST_PARAM.toString())))
@@ -407,7 +405,7 @@ public class Jsprit {
             regretInsertion.setScoringFunction(scorer);
             regret = regretInsertion;
         } else {
-            RegretInsertion regretInsertion = (RegretInsertion) new InsertionBuilder(vrp, fm, stateManager, constraintManager, destinationBaseLoadChecker)
+            RegretInsertion regretInsertion = (RegretInsertion) new InsertionBuilder(vrp, fm, stateManager, constraintManager/*, destinationBaseLoadChecker*/)
                 .setInsertionStrategy(InsertionBuilder.Strategy.REGRET)
                 .setAllowVehicleSwitch(toBoolean(getProperty(Parameter.VEHICLE_SWITCH.toString())))
                 .considerFixedCosts(toDouble(getProperty(Parameter.FIXED_COST_PARAM.toString())))
@@ -420,7 +418,7 @@ public class Jsprit {
 
         AbstractInsertionStrategy best;
         if (vrp.getJobs().size() < 250 || es == null) {
-            BestInsertion bestInsertion = (BestInsertion) new InsertionBuilder(vrp, fm, stateManager, constraintManager, destinationBaseLoadChecker)
+            BestInsertion bestInsertion = (BestInsertion) new InsertionBuilder(vrp, fm, stateManager, constraintManager/*, destinationBaseLoadChecker*/)
                 .setInsertionStrategy(InsertionBuilder.Strategy.BEST)
                 .considerFixedCosts(Double.valueOf(properties.getProperty(Parameter.FIXED_COST_PARAM.toString())))
                 .setAllowVehicleSwitch(toBoolean(getProperty(Parameter.VEHICLE_SWITCH.toString())))
@@ -428,7 +426,7 @@ public class Jsprit {
             best = bestInsertion;
         } else {
             BestInsertionConcurrent bestInsertion = (BestInsertionConcurrent) new InsertionBuilder(vrp, fm, stateManager,
-                    constraintManager, destinationBaseLoadChecker)
+                    constraintManager/*, destinationBaseLoadChecker*/)
                 .setInsertionStrategy(InsertionBuilder.Strategy.BEST)
                 .considerFixedCosts(Double.valueOf(properties.getProperty(Parameter.FIXED_COST_PARAM.toString())))
                 .setAllowVehicleSwitch(toBoolean(getProperty(Parameter.VEHICLE_SWITCH.toString())))

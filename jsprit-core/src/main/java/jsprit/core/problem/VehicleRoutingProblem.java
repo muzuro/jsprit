@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
+import jsprit.core.algorithm.state.DestinationBaseLoadChecker;
 import jsprit.core.problem.cost.VehicleRoutingActivityCosts;
 import jsprit.core.problem.cost.VehicleRoutingTransportCosts;
 import jsprit.core.problem.cost.WaitingTimeCosts;
@@ -688,6 +688,10 @@ public class VehicleRoutingProblem {
 
     public DestinationBaseLoadChecker getDestinationBaseLoadChecker() {
         return destinationBaseLoadChecker;
+    }
+
+    public void setDestinationBaseLoadChecker(DestinationBaseLoadChecker aDestinationBaseLoadChecker) {
+        destinationBaseLoadChecker = aDestinationBaseLoadChecker;
     }
 
 }

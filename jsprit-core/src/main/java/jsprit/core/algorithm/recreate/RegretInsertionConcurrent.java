@@ -20,8 +20,8 @@ package jsprit.core.algorithm.recreate;
 import jsprit.core.algorithm.recreate.RegretInsertion.DefaultScorer;
 import jsprit.core.algorithm.recreate.RegretInsertion.ScoredJob;
 import jsprit.core.algorithm.recreate.RegretInsertion.ScoringFunction;
+import jsprit.core.algorithm.state.DestinationBaseLoadChecker;
 import jsprit.core.problem.VehicleRoutingProblem;
-import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.VehicleRoute;
 import org.apache.logging.log4j.LogManager;
@@ -65,8 +65,8 @@ public class RegretInsertionConcurrent extends AbstractInsertionStrategy {
     }
 
     public RegretInsertionConcurrent(JobInsertionCostsCalculator jobInsertionCalculator, VehicleRoutingProblem vehicleRoutingProblem,
-            ExecutorService executorService, DestinationBaseLoadChecker aDestinationBaseLoadChecker) {
-        super(vehicleRoutingProblem, aDestinationBaseLoadChecker);
+            ExecutorService executorService) {
+        super(vehicleRoutingProblem);
         this.scoringFunction = new DefaultScorer(vehicleRoutingProblem);
         this.insertionCostsCalculator = jobInsertionCalculator;
         this.vrp = vehicleRoutingProblem;

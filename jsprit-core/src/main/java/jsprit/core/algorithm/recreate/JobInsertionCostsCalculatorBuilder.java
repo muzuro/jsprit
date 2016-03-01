@@ -21,11 +21,11 @@ import java.util.List;
 
 import jsprit.core.algorithm.listener.VehicleRoutingAlgorithmListeners.PrioritizedVRAListener;
 import jsprit.core.algorithm.recreate.listener.InsertionListener;
+import jsprit.core.algorithm.state.DestinationBaseLoadChecker;
 import jsprit.core.problem.AbstractActivity;
 import jsprit.core.problem.JobActivityFactory;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.constraint.ConstraintManager;
-import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.job.Base;
 import jsprit.core.problem.job.Delivery;
 import jsprit.core.problem.job.Destination;
@@ -99,8 +99,6 @@ public class JobInsertionCostsCalculatorBuilder {
     private boolean allowVehicleSwitch = true;
 
     private boolean addDefaultCostCalc = true;
-
-    private DestinationBaseLoadChecker destinationBaseLoadChecker;
 
     /**
      * Constructs the builder.
@@ -300,7 +298,7 @@ public class JobInsertionCostsCalculatorBuilder {
         ServiceInsertionCalculator serviceInsertion = new ServiceInsertionCalculator(vrp.getTransportCosts(), actInsertionCalc, constraintManager);
         serviceInsertion.setJobActivityFactory(activityFactory);
         DestinationInsertionCalculator destinationInsertion = new DestinationInsertionCalculator(vrp.getTransportCosts(),
-                actInsertionCalc, constraintManager, activityFactory, destinationBaseLoadChecker);
+                actInsertionCalc, constraintManager, activityFactory, vrp.getDestinationBaseLoadChecker());
         BaseInsertionCalculator baseInsertion = new BaseInsertionCalculator(vrp.getTransportCosts(), constraintManager,
                 activityFactory);
 
@@ -371,11 +369,6 @@ public class JobInsertionCostsCalculatorBuilder {
         this.constraintManager = constraintManager;
         return this;
     }
-    
-    public JobInsertionCostsCalculatorBuilder setDestinationBaseLoadChecker(DestinationBaseLoadChecker aDestinationBaseLoadChecker) {
-        destinationBaseLoadChecker = aDestinationBaseLoadChecker;
-        return this;
-    } 
 
     public JobInsertionCostsCalculatorBuilder setAllowVehicleSwitch(boolean allowVehicleSwitch) {
         this.allowVehicleSwitch = allowVehicleSwitch;

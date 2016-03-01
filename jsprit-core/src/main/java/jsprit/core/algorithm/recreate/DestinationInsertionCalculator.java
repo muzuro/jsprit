@@ -24,11 +24,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+import jsprit.core.algorithm.state.DestinationBaseLoadChecker;
 import jsprit.core.problem.AbstractActivity;
 import jsprit.core.problem.JobActivityFactory;
 import jsprit.core.problem.Location;
 import jsprit.core.problem.constraint.ConstraintManager;
-import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.constraint.HardActivityConstraint;
 import jsprit.core.problem.constraint.HardActivityConstraint.ConstraintsStatus;
 import jsprit.core.problem.constraint.HardRouteConstraint;
@@ -303,12 +303,6 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
         return bestBaseLocation;
     }
     
-    @Override
-    public DestinationBaseLoadChecker getDestinationBaseLoadChecker() {
-        // TODO Auto-generated method stub
-        return destinationBaseLoadChecker;
-    }
-    
     public static class EmptyConsumer implements Consumer<TourActivity> {
         public static final EmptyConsumer INSTANCE = new EmptyConsumer();
         private EmptyConsumer() {
@@ -317,59 +311,5 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
         public void accept(TourActivity aT) {
         }
     }
-    
-//    @Override
-//    public void optimizeBases(VehicleRoute aRoute) {
-//        Vehicle vehicle = aRoute.getVehicle();
-//        Start start = new Start(vehicle.getStartLocation(), vehicle.getEarliestDeparture(), Double.MAX_VALUE);
-//        End end = new End(vehicle.getEndLocation(), 0.0, vehicle.getLatestArrival());
-//        TourActivity prev = null;
-//        TourActivity current = start;
-//        TourActivity next = null;
-//        Iterator<TourActivity> iterator = aRoute.getActivities().iterator();
-//        current = iterator.next();
-//        boolean routeEnd = false;
-//        while (!routeEnd) {
-//            if (iterator.hasNext()) {
-//                next = iterator.next();
-//            } else {
-//                next = end;
-//                routeEnd = true;
-//            }
-//            if (current instanceof BaseService) {
-//                if (Objects.isNull(prev) || Objects.isNull(current)) {
-//                    continue;
-//                }
-//                Location bestBaseLocation = findBestLocation(aRoute, prev, next);
-//                Base base = ((Base) ((BaseService) current).getJob());
-//                base.setLocation(bestBaseLocation);
-//            }
-//            prev = current;  
-//            current = next;
-//        }
-//    }
-//    
-//    
-//
-//    private Location findBestLocation(VehicleRoute aRoute, TourActivity prev, TourActivity next) {
-//        Double min = Double.MAX_VALUE;
-//        Location bestBaseLocation = null;
-//        for (Location possibleBaseLocation : destinationBaseLoadChecker.getBaseLocations()) {
-//            double toBase = transportCosts.getTransportCost(prev.getLocation(),
-//                    possibleBaseLocation, prev.getEndTime(), aRoute.getDriver(), aRoute.getVehicle());
-//            double transportTime = transportCosts.getTransportTime(prev.getLocation(), possibleBaseLocation, prev.getEndTime(),
-//                    aRoute.getDriver(), aRoute.getVehicle());
-//            Double mpsProceedTime = destinationBaseLoadChecker.getUnloadDuration(aRoute.getVehicle());
-//            double fromBaseEndTime = prev.getEndTime() + transportTime + mpsProceedTime;
-//            double fromBase = transportCosts.getTransportCost(possibleBaseLocation,
-//                    next.getLocation(), fromBaseEndTime, aRoute.getDriver(), aRoute.getVehicle());
-//            double total = toBase + fromBase;
-//            if (total < min) {
-//                bestBaseLocation = possibleBaseLocation;
-//                min = total; 
-//            }
-//        }
-//        return bestBaseLocation;
-//    }
 
 }

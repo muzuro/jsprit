@@ -16,12 +16,25 @@
  ******************************************************************************/
 package jsprit.core.algorithm.state;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import jsprit.core.algorithm.listener.IterationStartsListener;
-import jsprit.core.algorithm.recreate.listener.*;
+import jsprit.core.algorithm.recreate.listener.InsertionEndsListener;
+import jsprit.core.algorithm.recreate.listener.InsertionListener;
+import jsprit.core.algorithm.recreate.listener.InsertionListeners;
+import jsprit.core.algorithm.recreate.listener.InsertionStartsListener;
+import jsprit.core.algorithm.recreate.listener.JobInsertedListener;
 import jsprit.core.algorithm.ruin.listener.RuinListener;
 import jsprit.core.algorithm.ruin.listener.RuinListeners;
+import jsprit.core.problem.Capacity;
+import jsprit.core.problem.Location;
 import jsprit.core.problem.VehicleRoutingProblem;
-import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.VehicleRoutingProblemSolution;
 import jsprit.core.problem.solution.route.ReverseRouteActivityVisitor;
@@ -29,13 +42,10 @@ import jsprit.core.problem.solution.route.RouteActivityVisitor;
 import jsprit.core.problem.solution.route.RouteVisitor;
 import jsprit.core.problem.solution.route.VehicleRoute;
 import jsprit.core.problem.solution.route.activity.ActivityVisitor;
-import jsprit.core.problem.solution.route.activity.BaseService;
 import jsprit.core.problem.solution.route.activity.ReverseActivityVisitor;
 import jsprit.core.problem.solution.route.activity.TourActivity;
 import jsprit.core.problem.solution.route.state.RouteAndActivityStateGetter;
 import jsprit.core.problem.vehicle.Vehicle;
-
-import java.util.*;
 
 /**
  * Manages states.
@@ -164,6 +174,18 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
         route_state_map = new HashMap<VehicleRoute, Object[]>();
         vehicle_dependent_route_state_map = new HashMap<VehicleRoute, Object[][]>();
         runStateMap = new HashMap<VehicleRoute, Object[][]>();
+    }
+    
+    public void initDestinationBaseLoadChecker(Capacity aFirstRunCapacity, List<Location>[] aBases,
+            Map<String, Double> aUnloadDurations) {
+        DestinationBaseLoadChecker destinationBaseLoadChecker = new DestinationBaseLoadChecker(this,
+                aFirstRunCapacity, aBases, aUnloadDurations);
+        vrp.setDestinationBaseLoadChecker(destinationBaseLoadChecker);
+        destinationBaseLoadChecker.initBaseIndex(vrp);
+        UpdateDestinationBaseLoads updateDestinationBaseLoad = new UpdateDestinationBaseLoads(this,
+                destinationBaseLoadChecker);
+        addRuinListener(updateDestinationBaseLoad);
+        addInsertionListener(updateDestinationBaseLoad);
     }
 
     private int getNuVehicleTypes(VehicleRoutingProblem vrp) {
@@ -646,12 +668,6 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
         }
     }
     
-    public void updateDestainationBaseLoadStates() {
-        UpdateDestinationBaseLoads updateDestinationBaseLoad = new UpdateDestinationBaseLoads(this);
-        addRuinListener(updateDestinationBaseLoad);
-        addInsertionListener(updateDestinationBaseLoad);
-    }
-
     /**
      * Updates time-window states.
      */

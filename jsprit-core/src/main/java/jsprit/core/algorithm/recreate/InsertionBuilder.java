@@ -16,17 +16,16 @@
  ******************************************************************************/
 package jsprit.core.algorithm.recreate;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+
 import jsprit.core.algorithm.listener.VehicleRoutingAlgorithmListeners.PrioritizedVRAListener;
 import jsprit.core.algorithm.recreate.listener.InsertionListener;
 import jsprit.core.algorithm.state.StateManager;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.constraint.ConstraintManager;
-import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.vehicle.VehicleFleetManager;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
 
 
 public class InsertionBuilder {
@@ -71,16 +70,13 @@ public class InsertionBuilder {
 
     private Strategy strategy = Strategy.BEST;
 
-    private DestinationBaseLoadChecker destinationBaseLoadChecker;
-
     public InsertionBuilder(VehicleRoutingProblem vrp, VehicleFleetManager vehicleFleetManager,
-            StateManager stateManager, ConstraintManager constraintManager, DestinationBaseLoadChecker destinationBaseLoadChecker) {
+            StateManager stateManager, ConstraintManager constraintManager) {
         super();
         this.vrp = vrp;
         this.stateManager = stateManager;
         this.constraintManager = constraintManager;
         this.fleetManager = vehicleFleetManager;
-        this.destinationBaseLoadChecker = destinationBaseLoadChecker;
     }
 
     public InsertionBuilder setInsertionStrategy(Strategy strategy) {
@@ -148,7 +144,6 @@ public class InsertionBuilder {
         } else {
             calcBuilder.setRouteLevel(forwaredLooking, memory, addDefaultCostCalc);
         }
-        calcBuilder.setDestinationBaseLoadChecker(destinationBaseLoadChecker);
         calcBuilder.setConstraintManager(constraintManager);
         calcBuilder.setStateManager(stateManager);
         calcBuilder.setVehicleRoutingProblem(vrp);
@@ -166,16 +161,15 @@ public class InsertionBuilder {
         InsertionStrategy insertion;
         if (strategy.equals(Strategy.BEST)) {
             if (executor == null) {
-                insertion = new BestInsertion(costCalculator, vrp, destinationBaseLoadChecker);
+                insertion = new BestInsertion(costCalculator, vrp);
             } else {
-                insertion = new BestInsertionConcurrent(costCalculator, executor, nuOfThreads, vrp,
-                        destinationBaseLoadChecker);
+                insertion = new BestInsertionConcurrent(costCalculator, executor, nuOfThreads, vrp);
             }
         } else if (strategy.equals(Strategy.REGRET)) {
             if (executor == null) {
-                insertion = new RegretInsertion(costCalculator, vrp, destinationBaseLoadChecker);
+                insertion = new RegretInsertion(costCalculator, vrp);
             } else {
-                insertion = new RegretInsertionConcurrent(costCalculator, vrp, executor, destinationBaseLoadChecker);
+                insertion = new RegretInsertionConcurrent(costCalculator, vrp, executor);
             }
         } else throw new IllegalStateException("you should never get here");
         for (InsertionListener l : iListeners) insertion.addListener(l);

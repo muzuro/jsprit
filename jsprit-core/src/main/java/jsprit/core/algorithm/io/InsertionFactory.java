@@ -19,10 +19,10 @@ package jsprit.core.algorithm.io;
 import jsprit.core.algorithm.listener.VehicleRoutingAlgorithmListeners.PrioritizedVRAListener;
 import jsprit.core.algorithm.recreate.InsertionBuilder;
 import jsprit.core.algorithm.recreate.InsertionStrategy;
+import jsprit.core.algorithm.state.DestinationBaseLoadChecker;
 import jsprit.core.algorithm.state.StateManager;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.constraint.ConstraintManager;
-import jsprit.core.problem.constraint.DestinationBaseLoadChecker;
 import jsprit.core.problem.vehicle.VehicleFleetManager;
 import org.apache.commons.configuration.HierarchicalConfiguration;
 import org.apache.logging.log4j.LogManager;
@@ -40,7 +40,7 @@ class InsertionFactory {
     public static InsertionStrategy createInsertion(VehicleRoutingProblem vrp, HierarchicalConfiguration config,
         VehicleFleetManager vehicleFleetManager, StateManager stateManager,
              List<PrioritizedVRAListener> algorithmListeners, ExecutorService executorService, int nuOfThreads,
-             ConstraintManager constraintManager, boolean addDefaultCostCalculators, DestinationBaseLoadChecker aDblc) {
+             ConstraintManager constraintManager, boolean addDefaultCostCalculators) {
 
         if (config.containsKey("[@name]")) {
             String insertionName = config.getString("[@name]");
@@ -49,8 +49,7 @@ class InsertionFactory {
             }
 
 
-            InsertionBuilder iBuilder = new InsertionBuilder(vrp, vehicleFleetManager, stateManager, constraintManager,
-                    aDblc);
+            InsertionBuilder iBuilder = new InsertionBuilder(vrp, vehicleFleetManager, stateManager, constraintManager);
 
             if (executorService != null) {
                 iBuilder.setConcurrentMode(executorService, nuOfThreads);

@@ -18,7 +18,6 @@ import jsprit.core.algorithm.box.Jsprit.Parameter;
 import jsprit.core.algorithm.state.InternalStates;
 import jsprit.core.algorithm.state.StateManager;
 import jsprit.core.algorithm.state.UpdateActivityTimes;
-import jsprit.core.algorithm.state.UpdateDestinationBaseLoads;
 import jsprit.core.algorithm.state.UpdateDestinationTimeMiss;
 import jsprit.core.problem.Capacity;
 import jsprit.core.problem.Location;
@@ -69,7 +68,6 @@ public class DestinationBaseTest {
                 .addJob(d2).addVehicle(v1).setFleetSize(FleetSize.FINITE).addInitialVehicleRoute(initialRoute).build();
         
         StateManager stateManager = new StateManager(vrp);
-        stateManager.updateDestainationBaseLoadStates();
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
         constraintManager.addConstraint(new BaseLoadActivityLevelConstraint(stateManager), Priority.HIGH);
         constraintManager.addConstraint(new DestinationLoadActivityLevelConstraint(stateManager), Priority.HIGH);
@@ -109,7 +107,6 @@ public class DestinationBaseTest {
                 .addAllJobs(destinations).addVehicle(v1).setFleetSize(FleetSize.FINITE).build();
         
         StateManager stateManager = new StateManager(vrp);
-        stateManager.updateDestainationBaseLoadStates();
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
         constraintManager.addConstraint(new BaseLoadActivityLevelConstraint(stateManager), Priority.HIGH);
         constraintManager.addConstraint(new DestinationLoadActivityLevelConstraint(stateManager), Priority.HIGH);
@@ -132,24 +129,30 @@ public class DestinationBaseTest {
         for (int i = 0; i < 23; i++) {
             destinations.add(createDestination(String.format("d%s", i), Location.newInstance(5*i, 10*i), 1));
         }
-        Base b1 = Base.Builder.newInstance("b1").setLocation(Location.newInstance(5,5)).build();
-        Base b2 = Base.Builder.newInstance("b2").setLocation(Location.newInstance(5,5)).build();
+        
+        Location baseLoc1 = Location.newInstance(5,10);
+        Location baseLoc2 = Location.newInstance(10,20);
         
         // vehicle
         VehicleTypeImpl vt = VehicleTypeImpl.Builder.newInstance("vt").addCapacityDimension(0, 30).build();
         VehicleImpl v1 = VehicleImpl.Builder.newInstance("v1").setType(vt)
                 .setStartLocation(Location.newInstance(0,0)).setEarliestStart(0).build();
         
-        VehicleRoute initialRoute = VehicleRoute.Builder.newInstance(v1).addService(b1).addService(b2).build();
-        VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance().addInitialVehicleRoute(initialRoute)/*.addJob(b1).addJob(b2)*/
+        VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance()
                 .addAllJobs(destinations).addVehicle(v1).setFleetSize(FleetSize.FINITE).build();
         
         StateManager stateManager = new StateManager(vrp);
-        stateManager.updateDestainationBaseLoadStates();
+        
+        int dimValue = 10;
+        Capacity firstRunCapacity = Capacity.Builder.newInstance().addDimension(0, dimValue).build();
+        Map<String, Double> unloadDurations = new HashMap<>();
+        unloadDurations.put(v1.getId(), 1d);
+        List<Location>[] vehicleBases = new List[]{Arrays.asList(baseLoc1, baseLoc2)};
+        stateManager.initDestinationBaseLoadChecker(firstRunCapacity, vehicleBases, unloadDurations);
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
         constraintManager.addConstraint(new BaseLoadActivityLevelConstraint(stateManager), Priority.HIGH);
         constraintManager.addConstraint(new DestinationLoadActivityLevelConstraint(stateManager,
-                Capacity.Builder.newInstance().addDimension(0, 10).build()), Priority.HIGH);
+                firstRunCapacity), Priority.HIGH);
         
         VehicleRoutingAlgorithm vra = Jsprit.Builder.newInstance(vrp)
                 .addCoreStateAndConstraintStuff(false)
@@ -160,7 +163,16 @@ public class DestinationBaseTest {
         VehicleRoutingProblemSolution solution = Solutions.bestOf(vra.searchSolutions());
         VehicleRoute route = solution.getRoutes().iterator().next();
         
-        Assert.assertTrue(route.getActivities().get(10) instanceof BaseService);
+        int firstVolume = 0;
+        List<TourActivity> activities = route.getActivities();
+        for (TourActivity tourActivity : activities) {
+            if (tourActivity instanceof BaseService) {
+                break;
+            }
+            firstVolume += tourActivity.getSize().get(0);
+        }
+        
+        Assert.assertTrue(firstVolume <= dimValue);
     }
     
     @Test
@@ -183,7 +195,6 @@ public class DestinationBaseTest {
                 .addAllJobs(destinations).addVehicle(v1).setFleetSize(FleetSize.FINITE).build();
         
         StateManager stateManager = new StateManager(vrp);
-        stateManager.updateDestainationBaseLoadStates();
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
         constraintManager.addConstraint(new BaseLoadActivityLevelConstraint(stateManager), Priority.HIGH);
         constraintManager.addConstraint(new DestinationLoadActivityLevelConstraint(stateManager), Priority.HIGH);
@@ -228,7 +239,6 @@ public class DestinationBaseTest {
                 .setActivityCosts(new TimeWindowCosts(timeWindowCostWeight)).build();
         
         StateManager stateManager = new StateManager(vrp);
-        stateManager.updateDestainationBaseLoadStates();
         
         UpdateDestinationTimeMiss updateDestinationTimeMiss = new UpdateDestinationTimeMiss(stateManager);
         stateManager.addRuinListener(updateDestinationTimeMiss);
@@ -328,7 +338,6 @@ public class DestinationBaseTest {
                 .addAllJobs(destinations).addVehicle(v1).setFleetSize(FleetSize.FINITE).build();
         
         StateManager stateManager = new StateManager(vrp);
-        stateManager.updateDestainationBaseLoadStates();
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
         constraintManager.addConstraint(new BaseLoadActivityLevelConstraint(stateManager), Priority.HIGH);
         constraintManager.addConstraint(new DestinationLoadActivityLevelConstraint(stateManager), Priority.HIGH);
@@ -363,7 +372,6 @@ public class DestinationBaseTest {
                 .addAllJobs(destinations).addVehicle(v1).setFleetSize(FleetSize.FINITE).build();
         
         StateManager stateManager = new StateManager(vrp);
-        stateManager.updateDestainationBaseLoadStates();
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
         constraintManager.addConstraint(new BaseLoadActivityLevelConstraint(stateManager), Priority.HIGH);
         constraintManager.addConstraint(new DestinationLoadActivityLevelConstraint(stateManager), Priority.HIGH);
@@ -371,14 +379,10 @@ public class DestinationBaseTest {
         Map<String, Double> unloadDurations = new HashMap<>();
         unloadDurations.put(v1.getId(), 1d);
         List<Location>[] vehicleBases = new List[]{Arrays.asList(baseLoc1, baseLoc2)};
-        
-        DestinationBaseLoadChecker destinationBaseLoadChecker = new DestinationBaseLoadChecker(stateManager,
-                Capacity.Builder.newInstance().addDimension(0, 10).build(), vehicleBases, unloadDurations);
-        
+        stateManager.initDestinationBaseLoadChecker(null, vehicleBases, unloadDurations);
         VehicleRoutingAlgorithm vra = Jsprit.Builder.newInstance(vrp)
                 .addCoreStateAndConstraintStuff(false)
                 .setStateAndConstraintManager(stateManager, constraintManager)
-                .setDestinationBaseLoadChecker(destinationBaseLoadChecker)
                 .buildAlgorithm();
         
         vra.setMaxIterations(10);
@@ -416,12 +420,8 @@ public class DestinationBaseTest {
         StateManager stateManager = new StateManager(vrp);
         List<Location> baseLocations = Arrays.asList(baseLoc1, baseLoc2);
         List<Location>[] vehicleBases = new List[]{baseLocations, baseLocations};
-        DestinationBaseLoadChecker destinationBaseLoadChecker = new DestinationBaseLoadChecker(stateManager,
-                Capacity.Builder.newInstance().addDimension(0, 10).build(), vehicleBases, unloadDurations);
-        UpdateDestinationBaseLoads updateDestinationBaseLoad = new UpdateDestinationBaseLoads(stateManager,
-                destinationBaseLoadChecker);
-        stateManager.addRuinListener(updateDestinationBaseLoad);
-        stateManager.addInsertionListener(updateDestinationBaseLoad);
+        stateManager.initDestinationBaseLoadChecker(Capacity.Builder.newInstance().addDimension(0, 10).build(),
+                vehicleBases, unloadDurations);
         stateManager.addStateUpdater(new UpdateActivityTimes(vrp.getTransportCosts(),
                 ActivityTimeTracker.ActivityPolicy.AS_SOON_AS_ARRIVED));
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
@@ -431,7 +431,6 @@ public class DestinationBaseTest {
         VehicleRoutingAlgorithm vra = Jsprit.Builder.newInstance(vrp)
 //                .addCoreStateAndConstraintStuff(false)
                 .setStateAndConstraintManager(stateManager, constraintManager)
-                .setDestinationBaseLoadChecker(destinationBaseLoadChecker)
                 .buildAlgorithm();
         
         vra.setMaxIterations(1024);

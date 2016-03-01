@@ -34,7 +34,9 @@ import jsprit.core.util.Solutions;
 import jsprit.core.util.TestUtils;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -115,6 +117,35 @@ public class OpenRoutesTest {
 
         assertEquals(10., Solutions.bestOf(solutions).getCost(), 0.01);
 
+    }
+    
+    @Test
+    public void whenDealingWithOpenRouteAndManyShipments_algorithmShouldCalculateCorrectCosts() {
+        VehicleType type = VehicleTypeImpl.Builder.newInstance("type").build();
+
+        VehicleImpl vehicle = VehicleImpl.Builder.newInstance("v").setLatestArrival(100.)
+            .setType(type).setReturnToDepot(false).setStartLocation(Location.Builder.newInstance()
+                .setCoordinate(Coordinate.newInstance(0, 0)).build()).build();
+
+        List<Shipment> shipments = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {            
+            Shipment shipment = Shipment.Builder.newInstance(String.format("s%s", i))
+                    .setPickupLocation(Location.Builder.newInstance().setCoordinate(Coordinate.newInstance(5 * i, 0)).build())
+                    .setDeliveryLocation(Location.Builder.newInstance().setCoordinate(Coordinate.newInstance(10 * i, 0)).build())
+                    .build();
+            shipments.add(shipment);
+        }
+
+        VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance().addAllJobs(shipments).addVehicle(vehicle).build();
+
+        VehicleRoutingAlgorithm vra = new SchrimpfFactory().createAlgorithm(vrp);
+        vra.setMaxIterations(10);
+
+        Collection<VehicleRoutingProblemSolution> solutions = vra.searchSolutions();
+        VehicleRoutingProblemSolution bestOf = Solutions.bestOf(solutions);
+        assertTrue(!bestOf.getUnassignedJobs().isEmpty());
+
+//        assertEquals(10., Solutions.bestOf(solutions).getCost(), 0.01);
     }
 
     @Test
