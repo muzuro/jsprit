@@ -22,14 +22,17 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
+import jsprit.core.algorithm.recreate.InsertionData.NoInsertionFound;
 import jsprit.core.problem.Location;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.job.Service;
 import jsprit.core.problem.job.Shipment;
 import jsprit.core.problem.solution.route.VehicleRoute;
+import jsprit.core.util.NoiseMaker;
 
 /**
  * Insertion based on regret approach.
@@ -178,6 +181,99 @@ public class RegretInsertion extends AbstractInsertionStrategy {
             return "[name=defaultScorer][twParam=" + tw_param + "][depotDistanceParam=" + depotDistance_param + "]";
         }
 
+    }
+
+    /**
+     * Best insertion that insert the job where additional costs are minimal.
+     *
+     * @author stefan schroeder
+     */
+    public final class BestInsertion extends AbstractInsertionStrategy {
+    
+        private Logger logger = LogManager.getLogger(BestInsertion.class);
+    
+        private JobInsertionCostsCalculator bestInsertionCostCalculator;
+    
+        private NoiseMaker noiseMaker = new NoiseMaker() {
+    
+            @Override
+            public double makeNoise() {
+                return 0;
+            }
+    
+        };
+    
+        public BestInsertion(JobInsertionCostsCalculator jobInsertionCalculator,
+                VehicleRoutingProblem vehicleRoutingProblem) {
+            super(vehicleRoutingProblem);
+            bestInsertionCostCalculator = jobInsertionCalculator;
+            logger.debug("initialise {}", this);
+        }
+    
+        @Override
+        public String toString() {
+            return "[name=bestInsertion]";
+        }
+    
+        @Override
+        public Collection<Job> insertUnassignedJobs(Collection<VehicleRoute> vehicleRoutes, Collection<Job> unassignedJobs) {
+            List<Job> badJobs = new ArrayList<Job>(unassignedJobs.size());
+            List<Job> unassignedJobList = new ArrayList<Job>(unassignedJobs);
+            Collections.shuffle(unassignedJobList, random);
+            for (Job unassignedJob : unassignedJobList) {
+                markRequiredRoutes(vehicleRoutes, unassignedJob);
+                Insertion bestInsertion = null;
+                double bestInsertionCost = Double.MAX_VALUE;
+                for (VehicleRoute vehicleRoute : vehicleRoutes) {
+                    InsertionData iData = bestInsertionCostCalculator.getInsertionData(vehicleRoute, unassignedJob, NO_NEW_VEHICLE_YET, NO_NEW_DEPARTURE_TIME_YET, NO_NEW_DRIVER_YET, bestInsertionCost);
+                    if (iData instanceof NoInsertionFound) {
+                        continue;
+                    }
+                    if (iData.getInsertionCost() < bestInsertionCost + noiseMaker.makeNoise()) {
+                        bestInsertion = new Insertion(vehicleRoute, iData);
+                        bestInsertionCost = iData.getInsertionCost();
+                    }
+                }
+                VehicleRoute newRoute = VehicleRoute.emptyRoute();
+                InsertionData newIData = bestInsertionCostCalculator.getInsertionData(newRoute, unassignedJob, NO_NEW_VEHICLE_YET, NO_NEW_DEPARTURE_TIME_YET, NO_NEW_DRIVER_YET, bestInsertionCost);
+                if (!(newIData instanceof NoInsertionFound)) {
+                    if (newIData.getInsertionCost() < bestInsertionCost + noiseMaker.makeNoise()) {
+                        bestInsertion = new Insertion(newRoute, newIData);
+                        vehicleRoutes.add(newRoute);
+                    }
+                }
+                if (bestInsertion == null) {
+                    badJobs.add(unassignedJob);
+                } else {
+                    String beforeInsert = bestInsertion.getRoute().prettyPrintActivites();
+                    insertJob(unassignedJob, bestInsertion.getInsertionData(), bestInsertion.getRoute());
+                    
+                    if (logger.isDebugEnabled()) {                    
+                        logger.debug("route {} inserted {} to position {}, after insert {}, badJobs: {}",
+                                beforeInsert,
+                                unassignedJob.getId(),
+                                bestInsertion.getInsertionData().getDeliveryInsertionIndex(),
+                                bestInsertion.getRoute().prettyPrintActivitesWithTimes(),
+                                badJobsToStr(badJobs));
+                    }
+                }
+            }
+            return badJobs;
+        }
+    
+        private String badJobsToStr(List<Job> aBadJobs) {
+            List<String> names = new ArrayList<String>();
+            for (Job j : aBadJobs) {
+                names.add(j.getId());
+            }
+            return names.toString();
+        }
+        
+        @Override
+        protected JobInsertionCostsCalculator getJobInsertionCostsCalculator() {
+            return bestInsertionCostCalculator;
+        }
+        
     }
 
     private static Logger logger = LogManager.getLogger(RegretInsertion.class);
