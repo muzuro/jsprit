@@ -152,6 +152,7 @@ class Inserter {
         }
         jobInsertionHandler.handleJobInsertion(job, insertionData, vehicleRoute);
 
-        insertionListeners.informJobInserted(job, vehicleRoute, insertionData.getInsertionCost(), insertionData.getAdditionalTime());
+        insertionListeners.informJobInserted(job, vehicleRoute, insertionData.getInsertionCost(),
+                insertionData.getAdditionalTime(), insertionData.getInsertionRunNumber());
     }
 }

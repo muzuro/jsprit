@@ -13,8 +13,13 @@ import jsprit.core.problem.Capacity;
 import jsprit.core.problem.Location;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.job.Base;
+import jsprit.core.problem.job.Destination;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.VehicleRoute;
+import jsprit.core.problem.solution.route.activity.BaseService;
+import jsprit.core.problem.solution.route.activity.DestinationService;
+import jsprit.core.problem.solution.route.activity.TourActivities;
+import jsprit.core.problem.solution.route.activity.TourActivity;
 import jsprit.core.problem.vehicle.Vehicle;
 
 public class DestinationBaseLoadChecker {
@@ -36,6 +41,14 @@ public class DestinationBaseLoadChecker {
     private final Map<String, Double> unloadDuration;
     
     private final Double defaultUnloadDuration;
+    
+    private final Capacity empty = Capacity.Builder.newInstance().build();
+    
+    private Capacity[] unloadVolumes;
+
+    private int minDailyIndex;
+
+    private Capacity[] dailyCapacities;
 
     DestinationBaseLoadChecker(StateManager aStateManager, Capacity aFirstRunCapacity,
             List<Location>[] aBases, Map<String, Double> aUnloadDurations) {
@@ -68,7 +81,11 @@ public class DestinationBaseLoadChecker {
                 vehicleCapacity = firstRunCapacity;
             }
             
-            if (vehicleCapacity.isGreaterOrEqual(Capacity.addup(aJob.getSize(), runLoad))) {
+            Location runUnloadLocation = stateManager.getRunState(route, i,
+                    InternalStates.DestinationBase.RUN_UNLOAD_LOCATION, Location.class, null);
+            boolean unloadAllow = isLocationDailyLoadable(runUnloadLocation, aJob.getSize());
+            boolean vehicleAllow = vehicleCapacity.isGreaterOrEqual(Capacity.addup(aJob.getSize(), runLoad));
+            if (vehicleAllow && unloadAllow) {
                 return false;//хотяб один рейс не заполнен
             }
         }
@@ -132,6 +149,54 @@ public class DestinationBaseLoadChecker {
 
     public List<Location> getAllVehicleBaseLocations() {
         return allVehicleBaseLocations;
+    }
+
+    public void initUnloadVolumes(int aMinDailyIndex, Capacity[] aDailyCapacities) {
+        minDailyIndex = aMinDailyIndex;
+        dailyCapacities = aDailyCapacities;
+        unloadVolumes = new Capacity[aDailyCapacities.length];
+        for (int i = 0; i < unloadVolumes.length; i++) {
+            unloadVolumes[i] = Capacity.Builder.newInstance().build();
+        }
+        
+    }
+
+    public void refreshDailyVolumes(Collection<VehicleRoute> aVehicleRoutes) {
+        for (int i = 0; i < unloadVolumes.length; i++) {
+            unloadVolumes[i] = empty;
+        }
+        for (VehicleRoute route: aVehicleRoutes) {
+            Capacity runVolume = empty;
+            for (TourActivity ta : route.getActivities()) {
+                if (ta instanceof DestinationService) {                    
+                    runVolume = Capacity.addup(runVolume, ta.getSize()); 
+                } else if (ta instanceof BaseService) {
+                    addUnloadVolume(ta.getLocation(), runVolume);
+                    runVolume = empty;
+                }
+            }
+        }
+    }
+    
+    public void addUnloadVolume(Location aLocation, Capacity aAdditionalLoad) {
+        int index = findDailyVolumeIndex(aLocation);
+        Capacity possibleUnloadCapacity = Capacity.addup(aAdditionalLoad,
+                unloadVolumes[index]);
+        unloadVolumes[index] = possibleUnloadCapacity;
+    }
+
+    private int findDailyVolumeIndex(Location location) {
+        return location.getIndex() - minDailyIndex;
+    }
+
+    public boolean isLocationDailyLoadable(Location aLocation, Capacity aAdditionalLoad) {
+        if (dailyCapacities == null) {
+            return true;
+        }
+        Capacity possibleUnloadCapacity = Capacity.addup(aAdditionalLoad,
+                unloadVolumes[findDailyVolumeIndex(aLocation)]);
+        Capacity dailyCapacity = dailyCapacities[findDailyVolumeIndex(aLocation)];
+        return dailyCapacity == null || possibleUnloadCapacity.isLessOrEqual(dailyCapacity);
     }
     
 }

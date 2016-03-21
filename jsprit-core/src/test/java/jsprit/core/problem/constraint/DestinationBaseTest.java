@@ -36,6 +36,7 @@ import jsprit.core.problem.solution.route.activity.TourActivity;
 import jsprit.core.problem.vehicle.VehicleImpl;
 import jsprit.core.problem.vehicle.VehicleTypeImpl;
 import jsprit.core.util.ActivityTimeTracker;
+import jsprit.core.util.Coordinate;
 import jsprit.core.util.Solutions;
 
 public class DestinationBaseTest {
@@ -288,6 +289,7 @@ public class DestinationBaseTest {
         return Destination.Builder.newInstance(id)
             .setLocation(newInstance)
             .setTimeWindow(new TimeWindow(0, Double.MAX_VALUE))
+            .setName(id)
             .addSizeDimension(0, capacity)
             .build();
     }
@@ -444,6 +446,79 @@ public class DestinationBaseTest {
         long count1 = route1.getActivities().stream().filter(a->a instanceof DestinationService).count();
         long count2 = route2.getActivities().stream().filter(a->a instanceof DestinationService).count();
         Assert.assertEquals(23, count1 + count2);
+    }
+    
+    @Test
+    public void testUnloadDailyVolume() {
+        //services
+        List<Destination> destinations = new ArrayList<Destination>();
+        for (int i = 1; i < 100; i++) {
+            destinations.add(createDestination(String.format("d%s", i), Location.newInstance(5*i, 10*i), 1));
+        }
+        
+        Location baseLoc1 = Location.Builder.newInstance().setCoordinate(Coordinate.newInstance(5,10)).setIndex(0).build();
+        Location baseLoc2 = Location.Builder.newInstance().setCoordinate(Coordinate.newInstance(-100,-200)).setIndex(1).build();
+        
+        // vehicle
+        VehicleTypeImpl vt1 = VehicleTypeImpl.Builder.newInstance("vt1").addCapacityDimension(0, 15).build();
+        VehicleImpl v1 = VehicleImpl.Builder.newInstance("v1").setType(vt1)
+                .setStartLocation(Location.newInstance(0,0)).setEarliestStart(0).build();
+        
+        VehicleTypeImpl vt2 = VehicleTypeImpl.Builder.newInstance("vt2").addCapacityDimension(0, 15).build();
+        VehicleImpl v2 = VehicleImpl.Builder.newInstance("v2").setType(vt2)
+                .setStartLocation(Location.newInstance(0,0)).setEarliestStart(0).build();
+        
+        VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance()
+                .addAllJobs(destinations).addVehicle(v1).addVehicle(v2).setFleetSize(FleetSize.FINITE).build();
+        
+        Map<String, Double> unloadDurations = new HashMap<>();
+        unloadDurations.put(v1.getId(), 1d);
+        unloadDurations.put(v2.getId(), 1d);
+        
+        Capacity limitCapacity = Capacity.Builder.newInstance().addDimension(0, 10).build();
+        Capacity[] dailyCapacities = {limitCapacity, null};
+        
+        StateManager stateManager = new StateManager(vrp);
+        List<Location> baseLocations = Arrays.asList(baseLoc1, baseLoc2);
+        List<Location>[] vehicleBases = new List[]{baseLocations, baseLocations};
+        stateManager.initDestinationBaseLoadChecker(null,
+                vehicleBases, unloadDurations, dailyCapacities, 0);
+        stateManager.addStateUpdater(new UpdateActivityTimes(vrp.getTransportCosts(),
+                ActivityTimeTracker.ActivityPolicy.AS_SOON_AS_ARRIVED));
+        ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
+        constraintManager.addConstraint(new BaseLoadActivityLevelConstraint(stateManager), Priority.HIGH);
+        constraintManager.addConstraint(new DestinationLoadActivityLevelConstraint(stateManager), Priority.HIGH);
+        constraintManager.addConstraint(new BaseDailyVolumeConstraint(stateManager, vrp), Priority.HIGH);
+        
+        VehicleRoutingAlgorithm vra = Jsprit.Builder.newInstance(vrp)
+                .setStateAndConstraintManager(stateManager, constraintManager)
+                .addCoreStateAndConstraintStuff(false)
+                .buildAlgorithm();
+        
+        vra.setMaxIterations(100);
+        VehicleRoutingProblemSolution solution = Solutions.bestOf(vra.searchSolutions());
+        System.out.println(solution.getIterationNum());
+
+        Capacity zeroIndexLocationCapacity = Capacity.Builder.newInstance().build();
+        for (VehicleRoute route : solution.getRoutes()) {
+            System.out.println(route.prettyPrintActivites());
+            List<TourActivity> activities = route.getActivities();
+            Capacity runVolume = Capacity.Builder.newInstance().build();
+            for (TourActivity act : activities) {
+                if (act instanceof DestinationService) {
+                    runVolume = Capacity.addup(runVolume, act.getSize());
+                } else if (act instanceof BaseService) {
+                    if (act.getLocation().equals(baseLoc1)) {
+                        zeroIndexLocationCapacity = Capacity.addup(zeroIndexLocationCapacity, runVolume);
+                    }
+                    runVolume = Capacity.Builder.newInstance().build();
+                }
+            }
+        }
+        
+//        Assert.assertTrue(solution.getUnassignedJobs().isEmpty());
+        Assert.assertTrue(zeroIndexLocationCapacity.isLessOrEqual(limitCapacity));
+//        Assert.assertTrue(zeroIndexLocationCapacity.isGreater(Capacity.Builder.newInstance().build()));
     }
     
 }

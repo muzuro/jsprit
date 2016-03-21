@@ -53,6 +53,8 @@ public class InternalStates {
     public static class DestinationBase {
         public static final StateId RUN_LOAD = new StateFactory.StateIdImpl("run_load", 0);
         
+        public static final StateId RUN_UNLOAD_LOCATION = new StateFactory.StateIdImpl("run_unload_location", 1);
+        
         public static final StateId FUTURE_WAITING = new StateFactory.StateIdImpl("dest_future_waiting", 15);    
         
         public static final StateId PAST_WAITING = new StateFactory.StateIdImpl("dest_past_waiting", 16);

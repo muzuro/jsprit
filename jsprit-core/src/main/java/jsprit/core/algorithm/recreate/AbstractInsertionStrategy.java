@@ -31,6 +31,7 @@ import jsprit.core.algorithm.recreate.listener.InsertionListeners;
 import jsprit.core.algorithm.state.DestinationBaseLoadChecker;
 import jsprit.core.algorithm.state.UpdateActivityTimes;
 import jsprit.core.problem.AbstractActivity;
+import jsprit.core.problem.Capacity;
 import jsprit.core.problem.Location;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.cost.VehicleRoutingTransportCosts;
@@ -41,6 +42,7 @@ import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.RouteActivityVisitor;
 import jsprit.core.problem.solution.route.VehicleRoute;
 import jsprit.core.problem.solution.route.activity.BaseService;
+import jsprit.core.problem.solution.route.activity.DestinationService;
 import jsprit.core.problem.solution.route.activity.End;
 import jsprit.core.problem.solution.route.activity.Start;
 import jsprit.core.problem.solution.route.activity.TourActivity;
@@ -132,6 +134,7 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
         Iterator<TourActivity> iterator = aRoute.getActivities().iterator();
         current = iterator.next();
         boolean routeEnd = false;
+        Capacity runLoad = Capacity.Builder.newInstance().build();
         while (!routeEnd) {
             if (iterator.hasNext()) {
                 next = iterator.next();
@@ -139,20 +142,23 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
                 next = end;
                 routeEnd = true;
             }
-            if (current instanceof BaseService) {
+            if (current instanceof DestinationService) {
+                runLoad = Capacity.addup(runLoad, current.getSize());
+            } else if (current instanceof BaseService) {
                 if (Objects.isNull(prev) || Objects.isNull(current)) {
                     continue;
                 }
-                Location bestBaseLocation = findBestLocation(aRoute, prev, next);
+                Location bestBaseLocation = findBestLocation(aRoute, prev, next, runLoad, current.getLocation());
                 Base base = ((Base) ((BaseService) current).getJob());
                 base.setLocation(bestBaseLocation);
             }
-            prev = current;  
+            prev = current;
             current = next;
         }
     }
     
-    private Location findBestLocation(VehicleRoute aRoute, TourActivity prev, TourActivity next) {
+    private Location findBestLocation(VehicleRoute aRoute, TourActivity prev, TourActivity next, Capacity aRunLoad,
+            Location aCurrentUnloadLocation) {
         DestinationBaseLoadChecker destinationBaseLoadChecker = vrp.getDestinationBaseLoadChecker();
         VehicleRoutingTransportCosts transportCosts = vrp.getTransportCosts();
         Double min = Double.MAX_VALUE;
@@ -167,7 +173,7 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
             double fromBase = transportCosts.getTransportCost(possibleBaseLocation,
                     next.getLocation(), fromBaseEndTime, aRoute.getDriver(), aRoute.getVehicle());
             double total = toBase + fromBase;
-            if (total < min) {
+            if (total < min && destinationBaseLoadChecker.isLocationDailyLoadable(possibleBaseLocation, aRunLoad)) {
                 bestBaseLocation = possibleBaseLocation;
                 min = total; 
             }
@@ -219,7 +225,8 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
         for (Event e : iData.getEvents()) {
             eventListeners.inform(e);
         }
-        insertionsListeners.informJobInserted(unassignedJob, inRoute, iData.getInsertionCost(), iData.getAdditionalTime());
+        insertionsListeners.informJobInserted(unassignedJob, inRoute, iData.getInsertionCost(), iData.getAdditionalTime(),
+                iData.getInsertionRunNumber());
     }
 
 }

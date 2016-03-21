@@ -296,6 +296,7 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
             TourActivity aPrevBaseAct, TourActivity aPostBaseAct) {
         List<Location> baseLocations;
         if (currentRoute.getVehicle() instanceof NoVehicle) {
+            //later base location will be obtained from vehicle(while base optimization jsprit.core.algorithm.recreate.AbstractInsertionStrategy.optimizeBases(VehicleRoute))
             baseLocations = destinationBaseLoadChecker.getAllVehicleBaseLocations();
         } else {
             baseLocations = destinationBaseLoadChecker.getBaseLocations(currentRoute.getVehicle());

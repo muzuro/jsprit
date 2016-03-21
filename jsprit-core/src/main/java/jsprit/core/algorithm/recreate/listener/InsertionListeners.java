@@ -33,10 +33,11 @@ public class InsertionListeners {
         return listeners;
     }
 
-    public void informJobInserted(Job insertedJob, VehicleRoute inRoute, double additionalCosts, double additionalTime) {
+    public void informJobInserted(Job insertedJob, VehicleRoute inRoute, double additionalCosts, double additionalTime,
+            int aRunNumber) {
         for (InsertionListener l : listeners) {
             if (l instanceof JobInsertedListener) {
-                ((JobInsertedListener) l).informJobInserted(insertedJob, inRoute, additionalCosts, additionalTime);
+                ((JobInsertedListener) l).informJobInserted(insertedJob, inRoute, additionalCosts, additionalTime, aRunNumber);
             }
         }
     }

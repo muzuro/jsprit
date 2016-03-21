@@ -176,7 +176,7 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
         runStateMap = new HashMap<VehicleRoute, Object[][]>();
     }
     
-    public void initDestinationBaseLoadChecker(Capacity aFirstRunCapacity, List<Location>[] aBases,
+    public DestinationBaseLoadChecker initDestinationBaseLoadChecker(Capacity aFirstRunCapacity, List<Location>[] aBases,
             Map<String, Double> aUnloadDurations) {
         DestinationBaseLoadChecker destinationBaseLoadChecker = new DestinationBaseLoadChecker(this,
                 aFirstRunCapacity, aBases, aUnloadDurations);
@@ -186,6 +186,21 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
                 destinationBaseLoadChecker);
         addRuinListener(updateDestinationBaseLoad);
         addInsertionListener(updateDestinationBaseLoad);
+        return destinationBaseLoadChecker;
+    }
+    
+    public void initDestinationBaseLoadChecker(Capacity aFirstRunCapacity, List<Location>[] aBases,
+            Map<String, Double> aUnloadDurations, Capacity[] aDailyVolumes, int aMinUnloadPointIndex) {
+        DestinationBaseLoadChecker destinationBaseLoadChecker = initDestinationBaseLoadChecker(aFirstRunCapacity,
+                aBases, aUnloadDurations);
+        destinationBaseLoadChecker.initUnloadVolumes(aMinUnloadPointIndex, aDailyVolumes);
+        insertionListeners.addListener(new InsertionStartsListener() {
+            @Override
+            public void informInsertionStarts(Collection<VehicleRoute> aVehicleRoutes,
+                    Collection<Job> aUnassignedJobs) {
+                vrp.getDestinationBaseLoadChecker().refreshDailyVolumes(aVehicleRoutes);
+            }
+        });
     }
 
     private int getNuVehicleTypes(VehicleRoutingProblem vrp) {
@@ -605,9 +620,20 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
     }
 
     @Override
-    public void informJobInserted(Job job2insert, VehicleRoute inRoute, double additionalCosts, double additionalTime) {
+    public void informJobInserted(Job job2insert, VehicleRoute inRoute, double additionalCosts, double additionalTime,
+            int aRunNumber) {
 //		log.debug("insert " + job2insert + " in " + inRoute);
-        insertionListeners.informJobInserted(job2insert, inRoute, additionalCosts, additionalTime);
+        insertionListeners.informJobInserted(job2insert, inRoute, additionalCosts, additionalTime, aRunNumber);
+        for (RouteVisitor v : routeVisitors) {
+            v.visit(inRoute);
+        }
+        routeActivityVisitor.visit(inRoute);
+        revRouteActivityVisitor.visit(inRoute);
+    }
+    
+    @Override
+    public void informJobInserted(Job job2insert, VehicleRoute inRoute, double additionalCosts, double additionalTime) {
+        insertionListeners.informJobInserted(job2insert, inRoute, additionalCosts, additionalTime, -1);
         for (RouteVisitor v : routeVisitors) {
             v.visit(inRoute);
         }

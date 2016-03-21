@@ -20,6 +20,7 @@ import java.util.Objects;
 
 import jsprit.core.algorithm.state.InternalStates;
 import jsprit.core.problem.Capacity;
+import jsprit.core.problem.Location;
 import jsprit.core.problem.misc.JobInsertionContext;
 import jsprit.core.problem.solution.route.activity.DestinationService;
 import jsprit.core.problem.solution.route.activity.End;
@@ -72,6 +73,7 @@ public class DestinationLoadActivityLevelConstraint implements HardActivityConst
         //insert allowed if run is not loaded
         Capacity vehicleCapacity = iFacts.getNewVehicle().getType().getCapacityDimensions();
         if (iFacts.getDestinationBaseContext().isFirstRun() && Objects.nonNull(firstRunCapacity)) {
+            // allowed capacity for first run
             vehicleCapacity = firstRunCapacity;
         }
         if (Capacity.addup(newAct.getSize(), runLoad).isLessOrEqual(vehicleCapacity)) {

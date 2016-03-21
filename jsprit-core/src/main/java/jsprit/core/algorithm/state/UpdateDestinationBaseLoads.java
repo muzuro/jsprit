@@ -24,6 +24,7 @@ import java.util.Objects;
 import jsprit.core.algorithm.recreate.listener.JobInsertedListener;
 import jsprit.core.algorithm.ruin.listener.RuinListener;
 import jsprit.core.problem.Capacity;
+import jsprit.core.problem.Location;
 import jsprit.core.problem.job.Base;
 import jsprit.core.problem.job.Destination;
 import jsprit.core.problem.job.Job;
@@ -51,17 +52,28 @@ class UpdateDestinationBaseLoads implements JobInsertedListener, RuinListener {
                 runLoad = Capacity.addup(runLoad, j.getSize());
                 stateManager.putInternalTypedActivityState(ta, InternalStates.FUTURE_MAXLOAD, Capacity.copyOf(runLoad));
             } else if (j instanceof Base) {
+                stateManager.putRunState(route, runNum, InternalStates.DestinationBase.RUN_UNLOAD_LOCATION,
+                        ((Base) j).getLocation());
                 stateManager.putRunState(route, runNum, InternalStates.DestinationBase.RUN_LOAD, Capacity.copyOf(runLoad));
                 runLoad = Capacity.Builder.newInstance().build();
                 runNum++;
             }
         }
         stateManager.putTypedInternalRouteState(route, InternalStates.DestinationBase.RUN_COUNT, runNum);
-    }
+    }   
 
     @Override
+    public void informJobInserted(Job aJob2insert, VehicleRoute aInRoute, double aAdditionalCosts,
+            double aAdditionalTime, int aRunNumber) {
+        refreshRuns(aInRoute);
+        //update unload volume
+        Location unloadLocation = stateManager.getRunState(aInRoute, aRunNumber,
+                InternalStates.DestinationBase.RUN_UNLOAD_LOCATION, Location.class, null);
+        destinationBaseLoadChecker.addUnloadVolume(unloadLocation, aJob2insert.getSize());
+    }
+    
+    @Override
     public void informJobInserted(Job job2insert, VehicleRoute inRoute, double additionalCosts, double additionalTime) {
-        refreshRuns(inRoute);
     }
 
     @Override

@@ -22,5 +22,11 @@ import jsprit.core.problem.solution.route.VehicleRoute;
 
 public interface JobInsertedListener extends InsertionListener {
 
-    public void informJobInserted(Job job2insert, VehicleRoute inRoute, double additionalCosts, double additionalTime);
+    void informJobInserted(Job job2insert, VehicleRoute inRoute, double additionalCosts, double additionalTime);
+    
+    default void informJobInserted(Job job2insert, VehicleRoute inRoute, double additionalCosts, double additionalTime,
+            int aRunNumber) {
+        informJobInserted(job2insert, inRoute, additionalCosts, additionalTime);
+    }
+    
 }
