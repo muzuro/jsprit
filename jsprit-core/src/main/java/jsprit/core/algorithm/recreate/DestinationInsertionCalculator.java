@@ -149,43 +149,45 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
             }
             
             Location bestBaseLocation = findBestLocation(currentRoute, newVehicle, newDriver, deliveryAct2Insert, end);
-            Integer runNumber = destinationBaseLoadChecker.getRunCount(currentRoute);
-            if (Objects.isNull(runNumber)) {
-                runNumber = 0;
-            }
-            
-            Base selectedBase = destinationBaseLoadChecker.findBaseToInsert();
-            selectedBase.setLocation(bestBaseLocation);
-            selectedBase.setServiceDuration(destinationBaseLoadChecker.getUnloadDuration(newVehicle));
-            AbstractActivity baseActivity = serviceActivityFactory.createActivity(selectedBase);
-            
-            ConstraintsStatus actStatus = hardActivityLevelConstraint.fulfilled(insertionContext, prevAct, deliveryAct2Insert,
-                    baseActivity, prevAct.getEndTime());
-            double actArrTime = prevAct.getEndTime() + transportCosts.getTransportTime(prevAct.getLocation(),
-                    deliveryAct2Insert.getLocation(), prevAct.getEndTime(), newDriver, newVehicle);
-            double actDepTime = CalculationUtils.getActivityEndTime(actArrTime, deliveryAct2Insert);
-            ConstraintsStatus baseStatus = hardActivityLevelConstraint.fulfilled(insertionContext, deliveryAct2Insert,
-                    baseActivity, end, actDepTime);
-            boolean canInsertAct = actStatus == ConstraintsStatus.NOT_FULFILLED_BREAK || actStatus == ConstraintsStatus.FULFILLED;
-            if (canInsertAct && baseStatus == ConstraintsStatus.FULFILLED) {                
-                double additionalICostsAtActLevel = softActivityConstraint.getCosts(insertionContext, prevAct, deliveryAct2Insert, baseActivity, prevAct.getEndTime());
-                double additionalTransportationCosts = additionalTransportCostsCalculator.getCosts(insertionContext, prevAct, deliveryAct2Insert, baseActivity, prevAct.getEndTime());
-                double iterCost = additionalICostsAtRouteLevel + additionalICostsAtActLevel + additionalTransportationCosts;
+            if (bestBaseLocation != null) {              
+                Integer runNumber = destinationBaseLoadChecker.getRunCount(currentRoute);
+                if (Objects.isNull(runNumber)) {
+                    runNumber = 0;
+                }
                 
-                int deliveryInsertionIndex = insertionIndex + 1;
-                InsertionData insertionData = new InsertionData(iterCost, InsertionData.NO_INDEX, deliveryInsertionIndex, newVehicle, newDriver);
-                insertionData.setInsertionRunNumber(runNumber);
-                insertionData.getEvents().add(new InsertActivity(currentRoute, newVehicle, deliveryAct2Insert,
-                        deliveryInsertionIndex, baseActivity, bs->destinationBaseLoadChecker.takeBase(selectedBase)));
-                insertionData.getEvents().add(new SwitchVehicle(currentRoute, newVehicle, newVehicleDepartureTime));
-                insertionData.setVehicleDepartureTime(newVehicleDepartureTime);
-                insertionData.setBaseToInsert(selectedBase);
-                return insertionData;
-            } else {
-                logger.debug("Can`t insert destination {} with base. route {}", jobToInsert.getName(),
-                        currentRoute.prettyPrintActivitesWithCapacity());
-                return InsertionData.createEmptyInsertionData();
+                Base selectedBase = destinationBaseLoadChecker.findBaseToInsert();
+                selectedBase.setLocation(bestBaseLocation);
+                selectedBase.setServiceDuration(destinationBaseLoadChecker.getUnloadDuration(newVehicle));
+                AbstractActivity baseActivity = serviceActivityFactory.createActivity(selectedBase);
+                ConstraintsStatus actStatus = hardActivityLevelConstraint.fulfilled(insertionContext, prevAct, deliveryAct2Insert,
+                        baseActivity, prevAct.getEndTime());
+                
+                double actArrTime = prevAct.getEndTime() + transportCosts.getTransportTime(prevAct.getLocation(),
+                        deliveryAct2Insert.getLocation(), prevAct.getEndTime(), newDriver, newVehicle);
+                double actDepTime = CalculationUtils.getActivityEndTime(actArrTime, deliveryAct2Insert);
+                ConstraintsStatus baseStatus = hardActivityLevelConstraint.fulfilled(insertionContext, deliveryAct2Insert,
+                        baseActivity, end, actDepTime);
+                boolean canCreateNextRun = actStatus == ConstraintsStatus.NOT_FULFILLED_BREAK
+                        || actStatus == ConstraintsStatus.FULFILLED;
+                if (canCreateNextRun && baseStatus == ConstraintsStatus.FULFILLED) {
+                    double additionalICostsAtActLevel = softActivityConstraint.getCosts(insertionContext, prevAct, deliveryAct2Insert, baseActivity, prevAct.getEndTime());
+                    double additionalTransportationCosts = additionalTransportCostsCalculator.getCosts(insertionContext, prevAct, deliveryAct2Insert, baseActivity, prevAct.getEndTime());
+                    double iterCost = additionalICostsAtRouteLevel + additionalICostsAtActLevel + additionalTransportationCosts;
+                    
+                    int deliveryInsertionIndex = insertionIndex + 1;
+                    InsertionData insertionData = new InsertionData(iterCost, InsertionData.NO_INDEX, deliveryInsertionIndex, newVehicle, newDriver);
+                    insertionData.setInsertionRunNumber(runNumber);
+                    insertionData.getEvents().add(new InsertActivity(currentRoute, newVehicle, deliveryAct2Insert,
+                            deliveryInsertionIndex, baseActivity, bs->destinationBaseLoadChecker.takeBase(selectedBase)));
+                    insertionData.getEvents().add(new SwitchVehicle(currentRoute, newVehicle, newVehicleDepartureTime));
+                    insertionData.setVehicleDepartureTime(newVehicleDepartureTime);
+                    insertionData.setBaseToInsert(selectedBase);
+                    return insertionData;
+                }
             }
+            logger.debug("Can`t insert destination {} with base. route {}", jobToInsert.getName(),
+                    currentRoute.prettyPrintActivitesWithCapacity());
+            return InsertionData.createEmptyInsertionData();
         }
 
         TourActivity prevAct = start;
@@ -201,6 +203,7 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
 //            sb = new StringBuilder("\n");
 //        }
         Consumer<TourActivity> baseLocationUpdater = EmptyConsumer.INSTANCE;
+        int insertionRunNumber = -1;
         while (!tourEnd) {
             TourActivity nextAct;
             if (activityIterator.hasNext()) {
@@ -245,6 +248,7 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
                     if (iterCost < bestCost) {
                         bestCost = iterCost;
                         insertionIndex = actIndex;
+                        insertionRunNumber  = destinationBaseContext.getRunNum();
 //                        if (nextAct instanceof BaseService) {
 //                            Location toChange = bestBaseLocation; 
 //                            baseLocationUpdater = new Consumer<TourActivity>() {
@@ -285,7 +289,7 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
             return InsertionData.createEmptyInsertionData();
         }
         InsertionData insertionData = new InsertionData(bestCost, InsertionData.NO_INDEX, insertionIndex, newVehicle, newDriver);
-        insertionData.setInsertionRunNumber(destinationBaseContext.getRunNum());
+        insertionData.setInsertionRunNumber(insertionRunNumber);
         insertionData.getEvents().add(new InsertActivity(currentRoute, newVehicle, deliveryAct2Insert, insertionIndex));
         insertionData.getEvents().add(new SwitchVehicle(currentRoute, newVehicle, newVehicleDepartureTime));
         insertionData.setVehicleDepartureTime(newVehicleDepartureTime);
@@ -302,6 +306,7 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
             baseLocations = destinationBaseLoadChecker.getBaseLocations(currentRoute.getVehicle());
         }
         Double min = Double.MAX_VALUE;
+        
         Location bestBaseLocation = null;
         for (Location possibleBaseLocation : baseLocations) {
             double toBase = transportCosts.getTransportCost(aPrevBaseAct.getLocation(),
@@ -309,7 +314,8 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
             double fromBase = transportCosts.getTransportCost(possibleBaseLocation,
                     aPostBaseAct.getLocation(), 0d, newDriver, newVehicle);
             double transportCost = toBase + fromBase; 
-            if (transportCost < min) {
+            if (transportCost < min && 
+                    destinationBaseLoadChecker.isLocationDailyLoadable(possibleBaseLocation, aPrevBaseAct.getSize())) {
                 bestBaseLocation = possibleBaseLocation;
                 min = transportCost; 
             }

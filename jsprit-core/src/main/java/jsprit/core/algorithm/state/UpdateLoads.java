@@ -16,6 +16,9 @@
  ******************************************************************************/
 package jsprit.core.algorithm.state;
 
+import java.util.Collection;
+
+import jsprit.core.algorithm.recreate.InsertionData;
 import jsprit.core.algorithm.recreate.listener.InsertionStartsListener;
 import jsprit.core.algorithm.recreate.listener.JobInsertedListener;
 import jsprit.core.problem.Capacity;
@@ -26,8 +29,6 @@ import jsprit.core.problem.job.Service;
 import jsprit.core.problem.solution.route.VehicleRoute;
 import jsprit.core.problem.solution.route.activity.ActivityVisitor;
 import jsprit.core.problem.solution.route.activity.TourActivity;
-
-import java.util.Collection;
 
 
 /**
@@ -101,7 +102,7 @@ class UpdateLoads implements ActivityVisitor, StateUpdater, InsertionStartsListe
     }
 
     @Override
-    public void informJobInserted(Job job2insert, VehicleRoute inRoute, double additionalCosts, double additionalTime) {
+    public void informJobInserted(Job job2insert, VehicleRoute inRoute, InsertionData aIData) {
         if (job2insert instanceof Delivery) {
             Capacity loadAtDepot = stateManager.getRouteState(inRoute, InternalStates.LOAD_AT_BEGINNING, Capacity.class);
             if (loadAtDepot == null) loadAtDepot = defaultValue;

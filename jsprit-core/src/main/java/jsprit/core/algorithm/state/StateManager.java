@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import jsprit.core.algorithm.listener.IterationStartsListener;
+import jsprit.core.algorithm.recreate.InsertionData;
 import jsprit.core.algorithm.recreate.listener.InsertionEndsListener;
 import jsprit.core.algorithm.recreate.listener.InsertionListener;
 import jsprit.core.algorithm.recreate.listener.InsertionListeners;
@@ -198,9 +199,11 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
             @Override
             public void informInsertionStarts(Collection<VehicleRoute> aVehicleRoutes,
                     Collection<Job> aUnassignedJobs) {
-                vrp.getDestinationBaseLoadChecker().refreshDailyVolumes(aVehicleRoutes);
+                vrp.getDestinationBaseLoadChecker().refreshUnloadLocation(aVehicleRoutes);
             }
         });
+        UpdateUnload uubv = new UpdateUnload(this, destinationBaseLoadChecker);
+        addInsertionListener(uubv);
     }
 
     private int getNuVehicleTypes(VehicleRoutingProblem vrp) {
@@ -620,27 +623,15 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
     }
 
     @Override
-    public void informJobInserted(Job job2insert, VehicleRoute inRoute, double additionalCosts, double additionalTime,
-            int aRunNumber) {
-//		log.debug("insert " + job2insert + " in " + inRoute);
-        insertionListeners.informJobInserted(job2insert, inRoute, additionalCosts, additionalTime, aRunNumber);
+    public void informJobInserted(Job aInsertedJob, VehicleRoute aInRoute, InsertionData aIData) {
+        insertionListeners.informJobInserted(aInsertedJob, aInRoute, aIData);
         for (RouteVisitor v : routeVisitors) {
-            v.visit(inRoute);
+            v.visit(aInRoute);
         }
-        routeActivityVisitor.visit(inRoute);
-        revRouteActivityVisitor.visit(inRoute);
+        routeActivityVisitor.visit(aInRoute);
+        revRouteActivityVisitor.visit(aInRoute);
     }
     
-    @Override
-    public void informJobInserted(Job job2insert, VehicleRoute inRoute, double additionalCosts, double additionalTime) {
-        insertionListeners.informJobInserted(job2insert, inRoute, additionalCosts, additionalTime, -1);
-        for (RouteVisitor v : routeVisitors) {
-            v.visit(inRoute);
-        }
-        routeActivityVisitor.visit(inRoute);
-        revRouteActivityVisitor.visit(inRoute);
-    }
-
     @Override
     public void informInsertionStarts(Collection<VehicleRoute> vehicleRoutes, Collection<Job> unassignedJobs) {
         insertionListeners.informInsertionStarts(vehicleRoutes, unassignedJobs);

@@ -486,7 +486,6 @@ public class DestinationBaseTest {
         stateManager.addStateUpdater(new UpdateActivityTimes(vrp.getTransportCosts(),
                 ActivityTimeTracker.ActivityPolicy.AS_SOON_AS_ARRIVED));
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
-        constraintManager.addConstraint(new BaseLoadActivityLevelConstraint(stateManager), Priority.HIGH);
         constraintManager.addConstraint(new DestinationLoadActivityLevelConstraint(stateManager), Priority.HIGH);
         constraintManager.addConstraint(new BaseDailyVolumeConstraint(stateManager, vrp), Priority.HIGH);
         
@@ -519,6 +518,74 @@ public class DestinationBaseTest {
 //        Assert.assertTrue(solution.getUnassignedJobs().isEmpty());
         Assert.assertTrue(zeroIndexLocationCapacity.isLessOrEqual(limitCapacity));
 //        Assert.assertTrue(zeroIndexLocationCapacity.isGreater(Capacity.Builder.newInstance().build()));
+    }
+    
+    @Test
+    public void testUnloadDailyVolume2() {
+        //services
+        List<Destination> destinations = new ArrayList<Destination>();
+        for (int i = 1; i <= 25; i++) {
+            destinations.add(createDestination(String.format("d%s", i), Location.newInstance(5*i, 10*i), 1));
+        }
+        
+        Location baseLoc1 = Location.Builder.newInstance().setCoordinate(Coordinate.newInstance(5,10)).setIndex(0).build();
+        
+        // vehicle
+        VehicleTypeImpl vt1 = VehicleTypeImpl.Builder.newInstance("vt1").addCapacityDimension(0, 15).build();
+        VehicleImpl v1 = VehicleImpl.Builder.newInstance("v1").setType(vt1)
+                .setStartLocation(Location.newInstance(0,0)).setEarliestStart(0).build();
+        
+        VehicleTypeImpl vt2 = VehicleTypeImpl.Builder.newInstance("vt2").addCapacityDimension(0, 15).build();
+        VehicleImpl v2 = VehicleImpl.Builder.newInstance("v2").setType(vt2)
+                .setStartLocation(Location.newInstance(0,0)).setEarliestStart(0).build();
+        
+        VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance()
+                .addAllJobs(destinations).addVehicle(v1).addVehicle(v2).setFleetSize(FleetSize.FINITE).build();
+        
+        Map<String, Double> unloadDurations = new HashMap<>();
+        unloadDurations.put(v1.getId(), 1d);
+        unloadDurations.put(v2.getId(), 1d);
+        
+        Capacity limitCapacity = Capacity.Builder.newInstance().addDimension(0, 20).build();
+        Capacity[] dailyCapacities = {limitCapacity};
+        
+        StateManager stateManager = new StateManager(vrp);
+        List<Location> baseLocations = Arrays.asList(baseLoc1);
+        List<Location>[] vehicleBases = new List[]{baseLocations, baseLocations};
+        stateManager.initDestinationBaseLoadChecker(null,
+                vehicleBases, unloadDurations, dailyCapacities, 0);
+        stateManager.addStateUpdater(new UpdateActivityTimes(vrp.getTransportCosts(),
+                ActivityTimeTracker.ActivityPolicy.AS_SOON_AS_ARRIVED));
+        ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
+        constraintManager.addConstraint(new DestinationLoadActivityLevelConstraint(stateManager), Priority.HIGH);
+        constraintManager.addConstraint(new BaseDailyVolumeConstraint(stateManager, vrp), Priority.HIGH);
+        
+        VehicleRoutingAlgorithm vra = Jsprit.Builder.newInstance(vrp)
+                .setStateAndConstraintManager(stateManager, constraintManager)
+                .addCoreStateAndConstraintStuff(false)
+                .buildAlgorithm();
+        
+        vra.setMaxIterations(100);
+        VehicleRoutingProblemSolution solution = Solutions.bestOf(vra.searchSolutions());
+        System.out.println(solution.getIterationNum());
+
+        Capacity unloadCapacity = Capacity.Builder.newInstance().build();
+        for (VehicleRoute route : solution.getRoutes()) {
+            System.out.println(route.prettyPrintActivites());
+            List<TourActivity> activities = route.getActivities();
+            Capacity runVolume = Capacity.Builder.newInstance().build();
+            for (TourActivity act : activities) {
+                if (act instanceof DestinationService) {
+                    runVolume = Capacity.addup(runVolume, act.getSize());
+                } else if (act instanceof BaseService) {
+                    unloadCapacity = Capacity.addup(unloadCapacity, runVolume);
+                    runVolume = Capacity.Builder.newInstance().build();
+                }
+            }
+        }
+        
+        Assert.assertTrue(unloadCapacity.isLessOrEqual(limitCapacity));
+        Assert.assertEquals(5, solution.getUnassignedJobs().size());
     }
     
 }

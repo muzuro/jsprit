@@ -16,17 +16,13 @@
  ******************************************************************************/
 package jsprit.core.algorithm.recreate.listener;
 
+import jsprit.core.algorithm.recreate.InsertionData;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.VehicleRoute;
 
 
 public interface JobInsertedListener extends InsertionListener {
 
-    void informJobInserted(Job job2insert, VehicleRoute inRoute, double additionalCosts, double additionalTime);
-    
-    default void informJobInserted(Job job2insert, VehicleRoute inRoute, double additionalCosts, double additionalTime,
-            int aRunNumber) {
-        informJobInserted(job2insert, inRoute, additionalCosts, additionalTime);
-    }
+    void informJobInserted(Job aInsertedJob, VehicleRoute aInRoute, InsertionData aIData);
     
 }

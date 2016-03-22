@@ -13,12 +13,10 @@ import jsprit.core.problem.Capacity;
 import jsprit.core.problem.Location;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.job.Base;
-import jsprit.core.problem.job.Destination;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.VehicleRoute;
 import jsprit.core.problem.solution.route.activity.BaseService;
 import jsprit.core.problem.solution.route.activity.DestinationService;
-import jsprit.core.problem.solution.route.activity.TourActivities;
 import jsprit.core.problem.solution.route.activity.TourActivity;
 import jsprit.core.problem.vehicle.Vehicle;
 
@@ -161,18 +159,23 @@ public class DestinationBaseLoadChecker {
         
     }
 
-    public void refreshDailyVolumes(Collection<VehicleRoute> aVehicleRoutes) {
+    public void refreshUnloadLocation(Collection<VehicleRoute> aVehicleRoutes) {
         for (int i = 0; i < unloadVolumes.length; i++) {
             unloadVolumes[i] = empty;
         }
         for (VehicleRoute route: aVehicleRoutes) {
+            int runNum = 0;
             Capacity runVolume = empty;
             for (TourActivity ta : route.getActivities()) {
                 if (ta instanceof DestinationService) {                    
                     runVolume = Capacity.addup(runVolume, ta.getSize()); 
                 } else if (ta instanceof BaseService) {
+                    // location unload volume state
                     addUnloadVolume(ta.getLocation(), runVolume);
                     runVolume = empty;
+                    // unload location state
+                    stateManager.putRunState(route, runNum++, InternalStates.DestinationBase.RUN_UNLOAD_LOCATION,
+                            ta.getLocation());
                 }
             }
         }

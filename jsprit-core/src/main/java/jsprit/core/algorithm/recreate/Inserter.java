@@ -16,6 +16,8 @@
  ******************************************************************************/
 package jsprit.core.algorithm.recreate;
 
+import java.util.List;
+
 import jsprit.core.algorithm.recreate.InsertionData.NoInsertionFound;
 import jsprit.core.algorithm.recreate.listener.InsertionListeners;
 import jsprit.core.problem.AbstractActivity;
@@ -24,9 +26,11 @@ import jsprit.core.problem.job.Job;
 import jsprit.core.problem.job.Service;
 import jsprit.core.problem.job.Shipment;
 import jsprit.core.problem.solution.route.VehicleRoute;
-import jsprit.core.problem.solution.route.activity.*;
-
-import java.util.List;
+import jsprit.core.problem.solution.route.activity.DefaultShipmentActivityFactory;
+import jsprit.core.problem.solution.route.activity.DefaultTourActivityFactory;
+import jsprit.core.problem.solution.route.activity.TourActivity;
+import jsprit.core.problem.solution.route.activity.TourActivityFactory;
+import jsprit.core.problem.solution.route.activity.TourShipmentActivityFactory;
 
 class Inserter {
 
@@ -152,7 +156,6 @@ class Inserter {
         }
         jobInsertionHandler.handleJobInsertion(job, insertionData, vehicleRoute);
 
-        insertionListeners.informJobInserted(job, vehicleRoute, insertionData.getInsertionCost(),
-                insertionData.getAdditionalTime(), insertionData.getInsertionRunNumber());
+        insertionListeners.informJobInserted(job, vehicleRoute, insertionData);
     }
 }

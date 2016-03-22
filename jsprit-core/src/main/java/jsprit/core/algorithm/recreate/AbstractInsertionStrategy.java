@@ -178,7 +178,7 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
                 min = total; 
             }
         }
-        return bestBaseLocation;
+        return bestBaseLocation != null ? bestBaseLocation : aCurrentUnloadLocation;
     }
 
     public abstract Collection<Job> insertUnassignedJobs(Collection<VehicleRoute> vehicleRoutes, Collection<Job> unassignedJobs);
@@ -225,8 +225,7 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
         for (Event e : iData.getEvents()) {
             eventListeners.inform(e);
         }
-        insertionsListeners.informJobInserted(unassignedJob, inRoute, iData.getInsertionCost(), iData.getAdditionalTime(),
-                iData.getInsertionRunNumber());
+        insertionsListeners.informJobInserted(unassignedJob, inRoute, iData);
     }
 
 }

@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Objects;
 
+import jsprit.core.algorithm.recreate.InsertionData;
 import jsprit.core.algorithm.recreate.listener.JobInsertedListener;
 import jsprit.core.algorithm.ruin.listener.RuinListener;
 import jsprit.core.problem.job.Job;
@@ -38,10 +39,10 @@ public class UpdateDestinationTimeMiss implements JobInsertedListener, RuinListe
     }
 
     @Override
-    public void informJobInserted(Job job2insert, VehicleRoute inRoute, double additionalCosts, double additionalTime) {
-        refreshRuns(inRoute);
+    public void informJobInserted(Job aInsertedJob, VehicleRoute aInRoute, InsertionData aIData) {
+        refreshRuns(aInRoute);
     }
-
+    
     @Override
     public void ruinEnds(Collection<VehicleRoute> routes, Collection<Job> unassignedJobs) {
         for (VehicleRoute route : routes) {
