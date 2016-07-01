@@ -112,12 +112,10 @@ public class DestinationBaseLoadChecker {
     }
 
     public void initBaseIndex(VehicleRoutingProblem aVrp) {
-        Location location = baseLocations[0].iterator().next();
         int index = aVrp.getNuActivities();
         for (int i = 0; i < aVrp.getNuActivities(); i++) {
             basePool.add(Base.Builder.newInstance(String.format("base%s", i))
                     .setIndex(index++)
-                    .setLocation(location)
                     .build());
         }
         aVrp.setNuActivities(index);

@@ -46,7 +46,7 @@ public class Base extends Service {
          * @throws IllegalStateException if neither locationId nor coord is set
          */
         public Base build() {
-            if (location == null) throw new IllegalStateException("location is missing");
+//            if (location == null) throw new IllegalStateException("location is missing");
             this.setType("delivery");
             super.capacity = super.capacityBuilder.build();
             super.skills = super.skillBuilder.build();
@@ -73,6 +73,16 @@ public class Base extends Service {
     @Override
     public void setServiceDuration(double aServiceTime) {
         super.setServiceDuration(aServiceTime);
+    }
+    
+    public static Base copyOf(Base aBase) {
+        return Builder.newInstance(aBase.getId())
+            .setIndex(aBase.getIndex())
+            .setLocation(aBase.getLocation())
+            .setName(aBase.getName())
+            .setType(aBase.getType())
+            .setServiceTime(aBase.getServiceDuration())
+            .build();
     }
     
 }

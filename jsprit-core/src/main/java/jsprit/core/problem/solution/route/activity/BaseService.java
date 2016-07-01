@@ -15,7 +15,8 @@ public class BaseService extends PickupService<Base> {
     
     @Override
     public BaseService duplicate() {
-        return new BaseService(this);
+        Base job = (Base) getJob();
+        return new BaseService(Base.copyOf(job));
     }
 
     @Override
