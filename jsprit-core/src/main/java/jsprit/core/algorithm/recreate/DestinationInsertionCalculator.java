@@ -19,12 +19,15 @@ package jsprit.core.algorithm.recreate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import jsprit.core.algorithm.state.DestinationBaseLoadChecker;
+import jsprit.core.algorithm.state.destinationbase.LocationAssignment;
 import jsprit.core.problem.AbstractActivity;
 import jsprit.core.problem.JobActivityFactory;
 import jsprit.core.problem.Location;
@@ -105,7 +108,8 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
      * assumption that cost changes can entirely covered by only looking at the predecessor i-1 and its successor i+1.
      */
     @Override
-    public InsertionData getInsertionData(final VehicleRoute currentRoute, final Job jobToInsert, final Vehicle newVehicle, double newVehicleDepartureTime, final Driver newDriver, final double bestKnownCosts) {
+    public InsertionData getInsertionData(final VehicleRoute currentRoute, final Job jobToInsert, final Vehicle newVehicle,
+            double newVehicleDepartureTime, final Driver newDriver, final double bestKnownCosts) {
         JobInsertionContext insertionContext = new JobInsertionContext(currentRoute, jobToInsert, newVehicle, newDriver, newVehicleDepartureTime);
         DestinationBaseContext destinationBaseContext = new DestinationBaseContext();
         insertionContext.setDestinationBaseContext(destinationBaseContext);
@@ -149,7 +153,7 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
             }
             
             Location bestBaseLocation = findBestLocation(currentRoute, newVehicle, newDriver, deliveryAct2Insert, end);
-            if (bestBaseLocation != null) {              
+            if (bestBaseLocation != null) {
                 Integer runNumber = destinationBaseLoadChecker.getRunCount(currentRoute);
                 if (Objects.isNull(runNumber)) {
                     runNumber = 0;
@@ -299,11 +303,22 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
     private Location findBestLocation(final VehicleRoute currentRoute, final Vehicle newVehicle, final Driver newDriver,
             TourActivity aPrevBaseAct, TourActivity aPostBaseAct) {
         List<Location> baseLocations;
-        if (currentRoute.getVehicle() instanceof NoVehicle) {
+        Vehicle vehicle = currentRoute.getVehicle();
+        if (vehicle instanceof NoVehicle) {
             //later base location will be obtained from vehicle(while base optimization jsprit.core.algorithm.recreate.AbstractInsertionStrategy.optimizeBases(VehicleRoute))
             baseLocations = destinationBaseLoadChecker.getAllVehicleBaseLocations();
         } else {
-            baseLocations = destinationBaseLoadChecker.getBaseLocations(currentRoute.getVehicle());
+            Integer runCount = destinationBaseLoadChecker.getRunCount(currentRoute);
+            if (Objects.isNull(runCount)) {
+                //null runCount means empty route
+                baseLocations = destinationBaseLoadChecker.getBaseLocations(vehicle, true, 0, 0, Collections.emptySet());
+            } else {                
+                int lastRunNumber = runCount - 1;
+                int loadPercent = destinationBaseLoadChecker.getLoadPercent(currentRoute, lastRunNumber);
+                //boolean aLastRun, int aRunNumber, int aLoadPercent, Set<LocationAssignment> aAssignedLocations
+                Set<LocationAssignment> locationAssignments = destinationBaseLoadChecker.getLocationAssignments(currentRoute);
+                baseLocations = destinationBaseLoadChecker.getBaseLocations(vehicle, true, lastRunNumber, loadPercent, locationAssignments);
+            }
         }
         Double min = Double.MAX_VALUE;
         

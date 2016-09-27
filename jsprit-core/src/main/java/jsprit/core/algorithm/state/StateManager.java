@@ -21,7 +21,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import jsprit.core.algorithm.listener.IterationStartsListener;
@@ -33,8 +32,8 @@ import jsprit.core.algorithm.recreate.listener.InsertionStartsListener;
 import jsprit.core.algorithm.recreate.listener.JobInsertedListener;
 import jsprit.core.algorithm.ruin.listener.RuinListener;
 import jsprit.core.algorithm.ruin.listener.RuinListeners;
+import jsprit.core.algorithm.state.destinationbase.BaseLocationProvider;
 import jsprit.core.problem.Capacity;
-import jsprit.core.problem.Location;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.VehicleRoutingProblemSolution;
@@ -177,10 +176,10 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
         runStateMap = new HashMap<VehicleRoute, Object[][]>();
     }
     
-    public DestinationBaseLoadChecker initDestinationBaseLoadChecker(Capacity aFirstRunCapacity, List<Location>[] aBases,
-            Map<String, Double> aUnloadDurations) {
+    public DestinationBaseLoadChecker initDestinationBaseLoadChecker(Capacity aFirstRunCapacity,
+            BaseLocationProvider aLocationSelector, Map<String, Double> aUnloadDurations) {
         DestinationBaseLoadChecker destinationBaseLoadChecker = new DestinationBaseLoadChecker(this,
-                aFirstRunCapacity, aBases, aUnloadDurations);
+                aFirstRunCapacity, aLocationSelector, aUnloadDurations);
         vrp.setDestinationBaseLoadChecker(destinationBaseLoadChecker);
         destinationBaseLoadChecker.initBaseIndex(vrp);
         UpdateDestinationBaseLoads updateDestinationBaseLoad = new UpdateDestinationBaseLoads(this,
@@ -190,10 +189,10 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
         return destinationBaseLoadChecker;
     }
     
-    public void initDestinationBaseLoadChecker(Capacity aFirstRunCapacity, List<Location>[] aBases,
+    public void initDestinationBaseLoadChecker(Capacity aFirstRunCapacity, BaseLocationProvider aLocationSelector,
             Map<String, Double> aUnloadDurations, Capacity[] aDailyVolumes, int aMinUnloadPointIndex) {
         DestinationBaseLoadChecker destinationBaseLoadChecker = initDestinationBaseLoadChecker(aFirstRunCapacity,
-                aBases, aUnloadDurations);
+                aLocationSelector, aUnloadDurations);
         destinationBaseLoadChecker.initUnloadVolumes(aMinUnloadPointIndex, aDailyVolumes);
         insertionListeners.addListener(new InsertionStartsListener() {
             @Override

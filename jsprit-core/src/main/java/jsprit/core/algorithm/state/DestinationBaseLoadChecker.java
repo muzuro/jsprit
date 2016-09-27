@@ -2,6 +2,7 @@ package jsprit.core.algorithm.state;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -9,6 +10,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import jsprit.core.algorithm.state.destinationbase.BaseLocationProvider;
+import jsprit.core.algorithm.state.destinationbase.LocationAssignment;
 import jsprit.core.problem.Capacity;
 import jsprit.core.problem.Location;
 import jsprit.core.problem.VehicleRoutingProblem;
@@ -28,9 +31,11 @@ public class DestinationBaseLoadChecker {
 
     private final Capacity firstRunCapacity;
     
-    private final List<Location>[] baseLocations;//номер в массиве - vehicle.getIndex()
+//    /** unlaods */
+//    private final List<Location>[] baseLocations;//номер в массиве - vehicle.getIndex()
     
-    private final List<Location> allVehicleBaseLocations;
+//    /** all vehicles unloads */
+//    private final List<Location> allVehicleBaseLocations;
     
     private final List<Base> basePool;
     
@@ -47,9 +52,12 @@ public class DestinationBaseLoadChecker {
     private int minDailyIndex;
 
     private Capacity[] dailyCapacities;
+    
+    private BaseLocationProvider baseLocationSelector;
 
     DestinationBaseLoadChecker(StateManager aStateManager, Capacity aFirstRunCapacity,
-            List<Location>[] aBases, Map<String, Double> aUnloadDurations) {
+            BaseLocationProvider aBaseLocationSelector, Map<String, Double> aUnloadDurations) {
+        baseLocationSelector = aBaseLocationSelector;
         defaultValue = Capacity.Builder.newInstance().build();
         stateManager = aStateManager;
         firstRunCapacity = aFirstRunCapacity;
@@ -57,13 +65,34 @@ public class DestinationBaseLoadChecker {
         defaultUnloadDuration = unloadDuration.values().iterator().next();
         basePool = new ArrayList<>();
         freeBases = new HashSet<>();
-        baseLocations = aBases;
-        
-        Set<Location> allLocationsUnique = new HashSet<>();
-        for (List<Location> vehicleLocations : baseLocations) {
-            allLocationsUnique.addAll(vehicleLocations);
+    }
+    
+    public int getLoadPercent(VehicleRoute route, int aRunNumber) {
+        Capacity runLoad = stateManager.getRunState(route, aRunNumber, InternalStates.DestinationBase.RUN_LOAD,
+                Capacity.class, defaultValue);
+        Capacity vehicleCapacity = route.getVehicle().getType().getCapacityDimensions();
+        return (runLoad.get(0) / vehicleCapacity.get(0)) * 100; 
+    }
+    
+    public Set<LocationAssignment> getLocationAssignments(VehicleRoute route) {
+        Integer runCount = stateManager.getRouteState(route, InternalStates.DestinationBase.RUN_COUNT, Integer.class);
+        if (Objects.isNull(runCount)) {
+            runCount = 0;
         }
-        allVehicleBaseLocations = new ArrayList<>(allLocationsUnique);
+        Map<Location, LocationAssignment> map = new HashMap<>();
+        for (int i = 0; i < runCount; i++) {
+            Location runUnloadLocation = stateManager.getRunState(route, i,
+                    InternalStates.DestinationBase.RUN_UNLOAD_LOCATION, Location.class, null);
+            
+            LocationAssignment locationAssignment = map.get(runUnloadLocation);
+            if (Objects.isNull(locationAssignment)) {                
+                locationAssignment = new LocationAssignment(runUnloadLocation, 1);
+                map.put(runUnloadLocation, locationAssignment);
+            } else {
+                locationAssignment.incrementCount();
+            }
+        }
+        return new HashSet<>(map.values());
     }
     
     public boolean isLoaded(Job aJob, VehicleRoute route) {
@@ -71,7 +100,7 @@ public class DestinationBaseLoadChecker {
         if (Objects.isNull(runCount)) {
             runCount = 0;
         }
-        for (int i = 0; i < runCount; i++) {            
+        for (int i = 0; i < runCount; i++) {
             Capacity runLoad = stateManager.getRunState(route, i, InternalStates.DestinationBase.RUN_LOAD,
                     Capacity.class, defaultValue);
             Capacity vehicleCapacity = route.getVehicle().getType().getCapacityDimensions();
@@ -103,10 +132,12 @@ public class DestinationBaseLoadChecker {
         return !Boolean.FALSE.equals(routeState);
     }
 
-    public List<Location> getBaseLocations(Vehicle aVehicle) {
-        return baseLocations[aVehicle.getIndex() - 1];
+    public List<Location> getBaseLocations(Vehicle aVehicle, boolean aLastRun, int aRunNumber, int aLoadPercent,
+            Set<LocationAssignment> aAssignedLocations) {
+        return baseLocationSelector.getAvailableBaseLocations(aVehicle, aLastRun, aRunNumber, aLoadPercent,
+                aAssignedLocations);
     }
-
+    
     public Double getUnloadDuration(Vehicle aVehicle) {
         return unloadDuration.getOrDefault(aVehicle, defaultUnloadDuration);
     }
@@ -144,7 +175,7 @@ public class DestinationBaseLoadChecker {
     }
 
     public List<Location> getAllVehicleBaseLocations() {
-        return allVehicleBaseLocations;
+        return baseLocationSelector.getAllLocations();
     }
 
     public void initUnloadVolumes(int aMinDailyIndex, Capacity[] aDailyCapacities) {

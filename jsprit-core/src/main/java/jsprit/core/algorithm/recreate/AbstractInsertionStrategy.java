@@ -18,25 +18,29 @@
 package jsprit.core.algorithm.recreate;
 
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 
 import jsprit.core.algorithm.recreate.listener.InsertionListener;
 import jsprit.core.algorithm.recreate.listener.InsertionListeners;
 import jsprit.core.algorithm.state.DestinationBaseLoadChecker;
 import jsprit.core.algorithm.state.UpdateActivityTimes;
-import jsprit.core.problem.AbstractActivity;
+import jsprit.core.algorithm.state.destinationbase.LocationAssignment;
 import jsprit.core.problem.Capacity;
 import jsprit.core.problem.Location;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.cost.VehicleRoutingTransportCosts;
 import jsprit.core.problem.driver.Driver;
-import jsprit.core.problem.driver.DriverImpl;
 import jsprit.core.problem.job.Base;
 import jsprit.core.problem.job.Job;
 import jsprit.core.problem.solution.route.RouteActivityVisitor;
@@ -49,11 +53,6 @@ import jsprit.core.problem.solution.route.activity.TourActivity;
 import jsprit.core.problem.vehicle.Vehicle;
 import jsprit.core.util.ActivityTimeTracker.ActivityPolicy;
 import jsprit.core.util.RandomNumberGeneration;
-import jsprit.core.util.RouteUtils;
-
-import org.apache.commons.lang.Validate;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public abstract class AbstractInsertionStrategy implements InsertionStrategy {
 
@@ -135,6 +134,11 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
         current = iterator.next();
         boolean routeEnd = false;
         Capacity runLoad = Capacity.Builder.newInstance().build();
+        int runNumber = 0;
+        
+        //при оптимизации направляем как
+        Set<LocationAssignment> assignedLocations = new HashSet<>();
+        
         while (!routeEnd) {
             if (iterator.hasNext()) {
                 next = iterator.next();
@@ -148,7 +152,8 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
                 if (Objects.isNull(prev) || Objects.isNull(current)) {
                     continue;
                 }
-                Location bestBaseLocation = findBestLocation(aRoute, prev, next, runLoad, current.getLocation());
+                Location bestBaseLocation = findBestLocation(aRoute, prev, next, runLoad, current.getLocation(),
+                        runNumber++, assignedLocations);
                 Base base = ((Base) ((BaseService) current).getJob());
                 base.setLocation(bestBaseLocation);
             }
@@ -157,13 +162,30 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
         }
     }
     
+    /**
+     * @param aRoute
+     * @param prev - before base point
+     * @param next - after base point
+     * @param aRunLoad - run capacity
+     * @param aCurrentUnloadLocation
+     * @param aRunNumber - run number, starts from 0
+     * @param aAssignedLocations 
+     * @return
+     */
     private Location findBestLocation(VehicleRoute aRoute, TourActivity prev, TourActivity next, Capacity aRunLoad,
-            Location aCurrentUnloadLocation) {
+            Location aCurrentUnloadLocation, int aRunNumber, Set<LocationAssignment> aAssignedLocations) {
         DestinationBaseLoadChecker destinationBaseLoadChecker = vrp.getDestinationBaseLoadChecker();
         VehicleRoutingTransportCosts transportCosts = vrp.getTransportCosts();
         Double min = Double.MAX_VALUE;
         Location bestBaseLocation = null;
-        for (Location possibleBaseLocation : destinationBaseLoadChecker.getBaseLocations(aRoute.getVehicle())) {
+        boolean lastRun = next instanceof End;
+        
+        Capacity vehicleCapacity = aRoute.getVehicle().getType().getCapacityDimensions();
+        int runLoadPercent = (aRunLoad.get(0) / vehicleCapacity.get(0)) * 100; 
+        
+        List<Location> allowedUnloadLocations = destinationBaseLoadChecker.getBaseLocations(aRoute.getVehicle(),
+                lastRun, aRunNumber, runLoadPercent, aAssignedLocations);
+        for (Location possibleBaseLocation : allowedUnloadLocations) {
             double toBase = transportCosts.getTransportCost(prev.getLocation(),
                     possibleBaseLocation, prev.getEndTime(), aRoute.getDriver(), aRoute.getVehicle());
             double transportTime = transportCosts.getTransportTime(prev.getLocation(), possibleBaseLocation, prev.getEndTime(),
@@ -172,10 +194,10 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
             double fromBaseEndTime = prev.getEndTime() + transportTime + mpsProceedTime;
             double fromBase = transportCosts.getTransportCost(possibleBaseLocation,
                     next.getLocation(), fromBaseEndTime, aRoute.getDriver(), aRoute.getVehicle());
-            double total = toBase + fromBase;
-            if (total < min && destinationBaseLoadChecker.isLocationDailyLoadable(possibleBaseLocation, aRunLoad)) {
+            double totalCost = toBase + fromBase;
+            if (totalCost < min && destinationBaseLoadChecker.isLocationDailyLoadable(possibleBaseLocation, aRunLoad)) {
                 bestBaseLocation = possibleBaseLocation;
-                min = total; 
+                min = totalCost; 
             }
         }
         return bestBaseLocation != null ? bestBaseLocation : aCurrentUnloadLocation;
