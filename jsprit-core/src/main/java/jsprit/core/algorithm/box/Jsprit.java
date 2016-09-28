@@ -525,12 +525,20 @@ public class Jsprit {
             });
         }
         if (es != null) {
-            Runtime.getRuntime().addShutdownHook(new Thread() {
+            Thread hook = new Thread() {
                 public void run() {
                     if (!es.isShutdown()) {
                         System.err.println("shutdowHook shuts down executorService");
                         es.shutdown();
                     }
+                }
+            };
+            Runtime.getRuntime().addShutdownHook(hook);
+            vra.addListener(new AlgorithmEndsListener() {
+                @Override
+                public void informAlgorithmEnds(VehicleRoutingProblem aProblem,
+                        Collection<VehicleRoutingProblemSolution> aSolutions) {
+                    Runtime.getRuntime().removeShutdownHook(hook);
                 }
             });
         }
