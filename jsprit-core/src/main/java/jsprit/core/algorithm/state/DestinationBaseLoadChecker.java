@@ -11,6 +11,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import jsprit.core.algorithm.state.destinationbase.BaseLocationProvider;
+import jsprit.core.algorithm.state.destinationbase.BaseServiceTimeProvider;
 import jsprit.core.algorithm.state.destinationbase.LocationAssignment;
 import jsprit.core.problem.Capacity;
 import jsprit.core.problem.Location;
@@ -31,12 +32,6 @@ public class DestinationBaseLoadChecker {
 
     private final Capacity firstRunCapacity;
     
-//    /** unlaods */
-//    private final List<Location>[] baseLocations;//номер в массиве - vehicle.getIndex()
-    
-//    /** all vehicles unloads */
-//    private final List<Location> allVehicleBaseLocations;
-    
     private final List<Base> basePool;
     
     private Set<Base> freeBases;
@@ -53,11 +48,15 @@ public class DestinationBaseLoadChecker {
 
     private Capacity[] dailyCapacities;
     
-    private BaseLocationProvider baseLocationSelector;
+    private BaseLocationProvider baseLocationProvider;
+    
+    private BaseServiceTimeProvider baseServiceTimeProvider;
 
     DestinationBaseLoadChecker(StateManager aStateManager, Capacity aFirstRunCapacity,
-            BaseLocationProvider aBaseLocationSelector, Map<String, Double> aUnloadDurations) {
-        baseLocationSelector = aBaseLocationSelector;
+            BaseLocationProvider aBaseLocationProvider, BaseServiceTimeProvider aBaseServiceTimeProvider,
+            Map<String, Double> aUnloadDurations) {
+        baseLocationProvider = aBaseLocationProvider;
+        baseServiceTimeProvider = aBaseServiceTimeProvider;
         defaultValue = Capacity.Builder.newInstance().build();
         stateManager = aStateManager;
         firstRunCapacity = aFirstRunCapacity;
@@ -113,10 +112,10 @@ public class DestinationBaseLoadChecker {
             boolean unloadAllow = isLocationDailyLoadable(runUnloadLocation, aJob.getSize());
             boolean vehicleAllow = vehicleCapacity.isGreaterOrEqual(Capacity.addup(aJob.getSize(), runLoad));
             if (vehicleAllow && unloadAllow) {
-                return false;//хотяб один рейс не заполнен
+                return false;//at least one run not full
             }
         }
-        return true;//все рейсы заполненны
+        return true;//all runs full
     }
     
     public Integer getRunCount(VehicleRoute route) {
@@ -134,12 +133,12 @@ public class DestinationBaseLoadChecker {
 
     public List<Location> getBaseLocations(Vehicle aVehicle, boolean aLastRun, int aRunNumber, int aLoadPercent,
             Set<LocationAssignment> aAssignedLocations) {
-        return baseLocationSelector.getAvailableBaseLocations(aVehicle, aLastRun, aRunNumber, aLoadPercent,
+        return baseLocationProvider.getAvailableBaseLocations(aVehicle, aLastRun, aRunNumber, aLoadPercent,
                 aAssignedLocations);
     }
     
-    public Double getUnloadDuration(Vehicle aVehicle) {
-        return unloadDuration.getOrDefault(aVehicle, defaultUnloadDuration);
+    public Double getUnloadDuration(Vehicle aVehicle, Location aLocation, double aUnloadArriveTime) {
+        return baseServiceTimeProvider.getBaseServiceTime(aVehicle, aLocation, aUnloadArriveTime);
     }
 
     public void initBaseIndex(VehicleRoutingProblem aVrp) {
@@ -175,7 +174,7 @@ public class DestinationBaseLoadChecker {
     }
 
     public List<Location> getAllVehicleBaseLocations() {
-        return baseLocationSelector.getAllLocations();
+        return baseLocationProvider.getAllLocations();
     }
 
     public void initUnloadVolumes(int aMinDailyIndex, Capacity[] aDailyCapacities) {

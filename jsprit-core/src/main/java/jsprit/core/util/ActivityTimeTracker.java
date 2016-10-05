@@ -88,13 +88,26 @@ public class ActivityTimeTracker implements ActivityVisitor {
             operationStartTime = actArrTime;
         } else operationStartTime = actArrTime;
 
-        double operationEndTime = operationStartTime + activity.getOperationTime();
+        double operationEndTime = calculateOperationEndTime(operationStartTime, activity);
 
         actEndTime = operationEndTime;
 
         prevAct = activity;
         startAtPrevAct = operationEndTime;
 
+    }
+    
+    /**
+     * @param aOperationStartTime
+     * @param aActivity
+     * @return activity end time
+     */
+    protected double calculateOperationEndTime(double aOperationStartTime, TourActivity aActivity) {
+        return aOperationStartTime + aActivity.getOperationTime();
+    }
+    
+    protected VehicleRoute getRoute() {
+        return route;
     }
 
     @Override

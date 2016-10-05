@@ -6,7 +6,7 @@ import java.util.Set;
 import jsprit.core.problem.Location;
 import jsprit.core.problem.vehicle.Vehicle;
 
-/** Always returns all locations */
+/** Always returns all locations, unload duration always zero */
 public class DefaultBaseLocationProvider implements BaseLocationProvider {
 
     private List<Location> locations;
@@ -25,5 +25,5 @@ public class DefaultBaseLocationProvider implements BaseLocationProvider {
     public List<Location> getAllLocations() {
         return locations;
     }
-    
+
 }

@@ -18,15 +18,18 @@
 package jsprit.core.algorithm.recreate;
 
 
+import org.apache.commons.math3.util.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
@@ -135,10 +138,10 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
         boolean routeEnd = false;
         Capacity runLoad = Capacity.Builder.newInstance().build();
         int runNumber = 0;
+        //we should calclute arrive time becouse it could be changed by best base calculation
+        double currentArriveTime = current.getArrTime();
         
-        //при оптимизации направляем как
-        Set<LocationAssignment> assignedLocations = new HashSet<>();
-        
+        Map<Location, LocationAssignment> assignedMap = new HashMap<>();
         while (!routeEnd) {
             if (iterator.hasNext()) {
                 next = iterator.next();
@@ -152,11 +155,28 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
                 if (Objects.isNull(prev) || Objects.isNull(current)) {
                     continue;
                 }
-                Location bestBaseLocation = findBestLocation(aRoute, prev, next, runLoad, current.getLocation(),
-                        runNumber++, assignedLocations);
-                Base base = ((Base) ((BaseService) current).getJob());
-                base.setLocation(bestBaseLocation);
+                
+                Pair<Location, Double> selected = findBestLocation(aRoute, prev, next, runLoad, current,
+                        runNumber++, new HashSet(assignedMap.keySet()), currentArriveTime);
+                BaseService baseService = (BaseService) current;
+                Base base = ((Base) baseService.getJob());
+                base.setLocation(selected.getKey());
+                base.setServiceDuration(selected.getValue());
+                
+                LocationAssignment locationAssignment = assignedMap.getOrDefault(selected.getKey(),
+                        new LocationAssignment(selected.getKey()));
+                locationAssignment.incrementCount();
+                assignedMap.put(selected.getKey(), locationAssignment);
             }
+            
+            //calculating next arrive time
+            double departureTime = currentArriveTime + current.getOperationTime();
+            double transportTime = vrp.getTransportCosts().getTransportTime(current.getLocation(), next.getLocation(),
+                    departureTime, aRoute.getDriver(), aRoute.getVehicle());
+            double nextArriveTime = departureTime + transportTime;
+            
+            //prepare to next iteration
+            currentArriveTime = nextArriveTime;
             prev = current;
             current = next;
         }
@@ -167,17 +187,19 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
      * @param prev - before base point
      * @param next - after base point
      * @param aRunLoad - run capacity
-     * @param aCurrentUnloadLocation
+     * @param aCurrent
      * @param aRunNumber - run number, starts from 0
      * @param aAssignedLocations 
      * @return
      */
-    private Location findBestLocation(VehicleRoute aRoute, TourActivity prev, TourActivity next, Capacity aRunLoad,
-            Location aCurrentUnloadLocation, int aRunNumber, Set<LocationAssignment> aAssignedLocations) {
+    private Pair<Location, Double> findBestLocation(VehicleRoute aRoute, TourActivity prev, TourActivity next,
+            Capacity aRunLoad, TourActivity aCurrent, int aRunNumber, Set<LocationAssignment> aAssignedLocations,
+                    Double aBaseArriveTime) {
         DestinationBaseLoadChecker destinationBaseLoadChecker = vrp.getDestinationBaseLoadChecker();
         VehicleRoutingTransportCosts transportCosts = vrp.getTransportCosts();
         Double min = Double.MAX_VALUE;
         Location bestBaseLocation = null;
+        Double bestBaseServiceTime = null;
         boolean lastRun = next instanceof End;
         
         Capacity vehicleCapacity = aRoute.getVehicle().getType().getCapacityDimensions();
@@ -188,19 +210,26 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
         for (Location possibleBaseLocation : allowedUnloadLocations) {
             double toBase = transportCosts.getTransportCost(prev.getLocation(),
                     possibleBaseLocation, prev.getEndTime(), aRoute.getDriver(), aRoute.getVehicle());
-            double transportTime = transportCosts.getTransportTime(prev.getLocation(), possibleBaseLocation, prev.getEndTime(),
-                    aRoute.getDriver(), aRoute.getVehicle());
-            Double mpsProceedTime = destinationBaseLoadChecker.getUnloadDuration(aRoute.getVehicle());
-            double fromBaseEndTime = prev.getEndTime() + transportTime + mpsProceedTime;
+            Double baseProceedTime = destinationBaseLoadChecker.getUnloadDuration(aRoute.getVehicle(),
+                    possibleBaseLocation, aBaseArriveTime);
+            double baseDepartureTime = aBaseArriveTime + baseProceedTime;
             double fromBase = transportCosts.getTransportCost(possibleBaseLocation,
-                    next.getLocation(), fromBaseEndTime, aRoute.getDriver(), aRoute.getVehicle());
+                    next.getLocation(), baseDepartureTime, aRoute.getDriver(), aRoute.getVehicle());
             double totalCost = toBase + fromBase;
             if (totalCost < min && destinationBaseLoadChecker.isLocationDailyLoadable(possibleBaseLocation, aRunLoad)) {
                 bestBaseLocation = possibleBaseLocation;
                 min = totalCost; 
+                bestBaseServiceTime = baseProceedTime;
             }
         }
-        return bestBaseLocation != null ? bestBaseLocation : aCurrentUnloadLocation;
+        if (Objects.nonNull(bestBaseLocation)) {
+            return Pair.create(bestBaseLocation, bestBaseServiceTime);
+        } else {
+            //rerequest base service time, becouse after insert time could be shifted
+            Double baseProceedTime = destinationBaseLoadChecker.getUnloadDuration(aRoute.getVehicle(),
+                    aCurrent.getLocation(), aCurrent.getArrTime());
+            return Pair.create(aCurrent.getLocation(), baseProceedTime);
+        }
     }
 
     public abstract Collection<Job> insertUnassignedJobs(Collection<VehicleRoute> vehicleRoutes, Collection<Job> unassignedJobs);

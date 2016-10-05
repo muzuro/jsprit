@@ -21,13 +21,13 @@ import jsprit.core.algorithm.state.UpdateActivityTimes;
 import jsprit.core.algorithm.state.UpdateDestinationTimeMiss;
 import jsprit.core.algorithm.state.destinationbase.BaseLocationProvider;
 import jsprit.core.algorithm.state.destinationbase.DefaultBaseLocationProvider;
+import jsprit.core.algorithm.state.destinationbase.DefaultBaseServiceTimeProvider;
 import jsprit.core.problem.Capacity;
 import jsprit.core.problem.Location;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.VehicleRoutingProblem.FleetSize;
 import jsprit.core.problem.constraint.ConstraintManager.Priority;
 import jsprit.core.problem.cost.TimeWindowCosts;
-import jsprit.core.problem.job.Base;
 import jsprit.core.problem.job.Destination;
 import jsprit.core.problem.solution.VehicleRoutingProblemSolution;
 import jsprit.core.problem.solution.route.VehicleRoute;
@@ -73,7 +73,8 @@ public class DestinationBaseTest {
         DefaultBaseLocationProvider locationSelector = new DefaultBaseLocationProvider(Arrays.asList(baseLoc1, baseLoc2));
         
         StateManager stateManager = new StateManager(vrp);
-        stateManager.initDestinationBaseLoadChecker(null, locationSelector, unloadDurations);
+        stateManager.initDestinationBaseLoadChecker(null, locationSelector, new DefaultBaseServiceTimeProvider(),
+                unloadDurations);
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
         constraintManager.addConstraint(new BaseLoadActivityLevelConstraint(stateManager), Priority.HIGH);
         constraintManager.addConstraint(new DestinationLoadActivityLevelConstraint(stateManager), Priority.HIGH);
@@ -117,7 +118,7 @@ public class DestinationBaseTest {
         DefaultBaseLocationProvider locationSelector = new DefaultBaseLocationProvider(Arrays.asList(baseLoc1, baseLoc2));
         
         StateManager stateManager = new StateManager(vrp);
-        stateManager.initDestinationBaseLoadChecker(null, locationSelector, unloadDurations);
+        stateManager.initDestinationBaseLoadChecker(null, locationSelector, new DefaultBaseServiceTimeProvider(), unloadDurations);
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
         constraintManager.addConstraint(new BaseLoadActivityLevelConstraint(stateManager), Priority.HIGH);
         constraintManager.addConstraint(new DestinationLoadActivityLevelConstraint(stateManager), Priority.HIGH);
@@ -159,7 +160,8 @@ public class DestinationBaseTest {
         Map<String, Double> unloadDurations = new HashMap<>();
         unloadDurations.put(v1.getId(), 1d);
         BaseLocationProvider blp = new DefaultBaseLocationProvider(Arrays.asList(baseLoc1, baseLoc2));
-        stateManager.initDestinationBaseLoadChecker(firstRunCapacity, blp, unloadDurations);
+        stateManager.initDestinationBaseLoadChecker(firstRunCapacity, blp, new DefaultBaseServiceTimeProvider(),
+                unloadDurations);
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
         constraintManager.addConstraint(new BaseLoadActivityLevelConstraint(stateManager), Priority.HIGH);
         constraintManager.addConstraint(new DestinationLoadActivityLevelConstraint(stateManager,
@@ -208,7 +210,8 @@ public class DestinationBaseTest {
         DefaultBaseLocationProvider locationSelector = new DefaultBaseLocationProvider(Arrays.asList(baseLoc1, baseLoc2));
         
         StateManager stateManager = new StateManager(vrp);
-        stateManager.initDestinationBaseLoadChecker(null, locationSelector, unloadDurations);
+        stateManager.initDestinationBaseLoadChecker(null, locationSelector, new DefaultBaseServiceTimeProvider(),
+                unloadDurations);
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
         constraintManager.addConstraint(new BaseLoadActivityLevelConstraint(stateManager), Priority.HIGH);
         constraintManager.addConstraint(new DestinationLoadActivityLevelConstraint(stateManager), Priority.HIGH);
@@ -255,7 +258,8 @@ public class DestinationBaseTest {
         DefaultBaseLocationProvider locationSelector = new DefaultBaseLocationProvider(Arrays.asList(baseLoc1));
         
         StateManager stateManager = new StateManager(vrp);
-        stateManager.initDestinationBaseLoadChecker(null, locationSelector, unloadDurations);
+        stateManager.initDestinationBaseLoadChecker(null, locationSelector, new DefaultBaseServiceTimeProvider(),
+                unloadDurations);
         
         UpdateDestinationTimeMiss updateDestinationTimeMiss = new UpdateDestinationTimeMiss(stateManager);
         stateManager.addRuinListener(updateDestinationTimeMiss);
@@ -361,7 +365,8 @@ public class DestinationBaseTest {
         
         Capacity[] dailyCapacities = new Capacity[2];
         StateManager stateManager = new StateManager(vrp);
-        stateManager.initDestinationBaseLoadChecker(null, locationSelector, unloadDurations, dailyCapacities, 0);
+        stateManager.initDestinationBaseLoadChecker(null, locationSelector, new DefaultBaseServiceTimeProvider(),
+                unloadDurations, dailyCapacities, 0);
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
         constraintManager.addConstraint(new BaseLoadActivityLevelConstraint(stateManager), Priority.HIGH);
         constraintManager.addConstraint(new DestinationLoadActivityLevelConstraint(stateManager), Priority.HIGH);
@@ -403,7 +408,8 @@ public class DestinationBaseTest {
         Map<String, Double> unloadDurations = new HashMap<>();
         unloadDurations.put(v1.getId(), 1d);
         DefaultBaseLocationProvider locationSelector = new DefaultBaseLocationProvider(Arrays.asList(baseLoc1, baseLoc2));
-        stateManager.initDestinationBaseLoadChecker(null, locationSelector, unloadDurations);
+        stateManager.initDestinationBaseLoadChecker(null, locationSelector, new DefaultBaseServiceTimeProvider(),
+                unloadDurations);
         VehicleRoutingAlgorithm vra = Jsprit.Builder.newInstance(vrp)
                 .addCoreStateAndConstraintStuff(false)
                 .setStateAndConstraintManager(stateManager, constraintManager)
@@ -445,7 +451,7 @@ public class DestinationBaseTest {
         List<Location> baseLocations = Arrays.asList(baseLoc1, baseLoc2);
         DefaultBaseLocationProvider locationSelector = new DefaultBaseLocationProvider(Arrays.asList(baseLoc1, baseLoc2));
         stateManager.initDestinationBaseLoadChecker(Capacity.Builder.newInstance().addDimension(0, 10).build(),
-                locationSelector, unloadDurations);
+                locationSelector, new DefaultBaseServiceTimeProvider(), unloadDurations);
         stateManager.addStateUpdater(new UpdateActivityTimes(vrp.getTransportCosts(),
                 ActivityTimeTracker.ActivityPolicy.AS_SOON_AS_ARRIVED));
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
@@ -504,7 +510,7 @@ public class DestinationBaseTest {
         List<Location> baseLocations = Arrays.asList(baseLoc1, baseLoc2);
         DefaultBaseLocationProvider locationSelector = new DefaultBaseLocationProvider(Arrays.asList(baseLoc1, baseLoc2));
         stateManager.initDestinationBaseLoadChecker(null,
-                locationSelector, unloadDurations, dailyCapacities, 0);
+                locationSelector, new DefaultBaseServiceTimeProvider(), unloadDurations, dailyCapacities, 0);
         stateManager.addStateUpdater(new UpdateActivityTimes(vrp.getTransportCosts(),
                 ActivityTimeTracker.ActivityPolicy.AS_SOON_AS_ARRIVED));
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
@@ -574,7 +580,8 @@ public class DestinationBaseTest {
         StateManager stateManager = new StateManager(vrp);
         List<Location> baseLocations = Arrays.asList(baseLoc1);
         DefaultBaseLocationProvider locationSelector = new DefaultBaseLocationProvider(baseLocations);
-        stateManager.initDestinationBaseLoadChecker(null, locationSelector, unloadDurations, dailyCapacities, 0);
+        stateManager.initDestinationBaseLoadChecker(null, locationSelector, new DefaultBaseServiceTimeProvider(),
+                unloadDurations, dailyCapacities, 0);
         stateManager.addStateUpdater(new UpdateActivityTimes(vrp.getTransportCosts(),
                 ActivityTimeTracker.ActivityPolicy.AS_SOON_AS_ARRIVED));
         ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);

@@ -16,6 +16,7 @@
  ******************************************************************************/
 package jsprit.core.algorithm.recreate;
 
+import org.apache.commons.math3.util.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -152,16 +153,20 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
                 prevAct = activities.get(insertionIndex);
             }
             
-            Location bestBaseLocation = findBestLocation(currentRoute, newVehicle, newDriver, deliveryAct2Insert, end);
-            if (bestBaseLocation != null) {
+            double transportToInsertDuration = transportCosts.getTransportTime(prevAct.getLocation(), deliveryAct2Insert.getLocation(),
+                    prevAct.getEndTime(), newDriver, newVehicle);
+            double insertStartTime = transportToInsertDuration + prevAct.getEndTime();
+            double insertEndTime = insertStartTime + deliveryAct2Insert.getOperationTime();
+            Pair<Location, Double> bestBase = findBestLocationWithDuration(currentRoute, newVehicle, newDriver, deliveryAct2Insert, end, insertEndTime);
+            if (bestBase != null) {
                 Integer runNumber = destinationBaseLoadChecker.getRunCount(currentRoute);
                 if (Objects.isNull(runNumber)) {
                     runNumber = 0;
                 }
                 
                 Base selectedBase = destinationBaseLoadChecker.findBaseToInsert();
-                selectedBase.setLocation(bestBaseLocation);
-                selectedBase.setServiceDuration(destinationBaseLoadChecker.getUnloadDuration(newVehicle));
+                selectedBase.setLocation(bestBase.getFirst());
+                selectedBase.setServiceDuration(bestBase.getSecond());
                 AbstractActivity baseActivity = serviceActivityFactory.createActivity(selectedBase);
                 ConstraintsStatus actStatus = hardActivityLevelConstraint.fulfilled(insertionContext, prevAct, deliveryAct2Insert,
                         baseActivity, prevAct.getEndTime());
@@ -300,8 +305,8 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
         return insertionData;
     }
 
-    private Location findBestLocation(final VehicleRoute currentRoute, final Vehicle newVehicle, final Driver newDriver,
-            TourActivity aPrevBaseAct, TourActivity aPostBaseAct) {
+    private Pair<Location, Double> findBestLocationWithDuration(final VehicleRoute currentRoute, final Vehicle newVehicle, final Driver newDriver,
+            TourActivity aPrevBaseAct, TourActivity aPostBaseAct, double aInsertEndTime) {
         List<Location> baseLocations;
         Vehicle vehicle = currentRoute.getVehicle();
         if (vehicle instanceof NoVehicle) {
@@ -315,27 +320,31 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
             } else {                
                 int lastRunNumber = runCount - 1;
                 int loadPercent = destinationBaseLoadChecker.getLoadPercent(currentRoute, lastRunNumber);
-                //boolean aLastRun, int aRunNumber, int aLoadPercent, Set<LocationAssignment> aAssignedLocations
                 Set<LocationAssignment> locationAssignments = destinationBaseLoadChecker.getLocationAssignments(currentRoute);
-                baseLocations = destinationBaseLoadChecker.getBaseLocations(vehicle, true, lastRunNumber, loadPercent, locationAssignments);
+                baseLocations = destinationBaseLoadChecker.getBaseLocations(vehicle, true, lastRunNumber, loadPercent,
+                        locationAssignments);
             }
         }
         Double min = Double.MAX_VALUE;
         
-        Location bestBaseLocation = null;
+        Pair<Location, Double> bestResult = null;
         for (Location possibleBaseLocation : baseLocations) {
             double toBase = transportCosts.getTransportCost(aPrevBaseAct.getLocation(),
-                    possibleBaseLocation, 0d, newDriver, newVehicle);
+                    possibleBaseLocation, aInsertEndTime, newDriver, newVehicle);
+            double unloadArriveTime = aInsertEndTime + toBase;
+            double unloadDuration = destinationBaseLoadChecker.getUnloadDuration(vehicle, possibleBaseLocation,
+                    unloadArriveTime); 
+            double unloadDepatureTime = unloadArriveTime + unloadDuration;
             double fromBase = transportCosts.getTransportCost(possibleBaseLocation,
-                    aPostBaseAct.getLocation(), 0d, newDriver, newVehicle);
+                    aPostBaseAct.getLocation(), unloadDepatureTime, newDriver, newVehicle);
             double transportCost = toBase + fromBase; 
             if (transportCost < min && 
                     destinationBaseLoadChecker.isLocationDailyLoadable(possibleBaseLocation, aPrevBaseAct.getSize())) {
-                bestBaseLocation = possibleBaseLocation;
-                min = transportCost; 
+                bestResult = Pair.create(possibleBaseLocation, unloadDuration);
+                min = transportCost;
             }
         }
-        return bestBaseLocation;
+        return bestResult;
     }
     
     public static class EmptyConsumer implements Consumer<TourActivity> {

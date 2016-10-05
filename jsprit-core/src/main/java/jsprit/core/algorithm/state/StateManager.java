@@ -33,6 +33,7 @@ import jsprit.core.algorithm.recreate.listener.JobInsertedListener;
 import jsprit.core.algorithm.ruin.listener.RuinListener;
 import jsprit.core.algorithm.ruin.listener.RuinListeners;
 import jsprit.core.algorithm.state.destinationbase.BaseLocationProvider;
+import jsprit.core.algorithm.state.destinationbase.BaseServiceTimeProvider;
 import jsprit.core.problem.Capacity;
 import jsprit.core.problem.VehicleRoutingProblem;
 import jsprit.core.problem.job.Job;
@@ -177,9 +178,10 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
     }
     
     public DestinationBaseLoadChecker initDestinationBaseLoadChecker(Capacity aFirstRunCapacity,
-            BaseLocationProvider aLocationSelector, Map<String, Double> aUnloadDurations) {
+            BaseLocationProvider aLocationSelector, BaseServiceTimeProvider aBaseServiceTimeProvider,
+                Map<String, Double> aUnloadDurations) {
         DestinationBaseLoadChecker destinationBaseLoadChecker = new DestinationBaseLoadChecker(this,
-                aFirstRunCapacity, aLocationSelector, aUnloadDurations);
+                aFirstRunCapacity, aLocationSelector, aBaseServiceTimeProvider, aUnloadDurations);
         vrp.setDestinationBaseLoadChecker(destinationBaseLoadChecker);
         destinationBaseLoadChecker.initBaseIndex(vrp);
         UpdateDestinationBaseLoads updateDestinationBaseLoad = new UpdateDestinationBaseLoads(this,
@@ -190,9 +192,10 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
     }
     
     public void initDestinationBaseLoadChecker(Capacity aFirstRunCapacity, BaseLocationProvider aLocationSelector,
+            BaseServiceTimeProvider aBaseServiceTimeProvider,
             Map<String, Double> aUnloadDurations, Capacity[] aDailyVolumes, int aMinUnloadPointIndex) {
         DestinationBaseLoadChecker destinationBaseLoadChecker = initDestinationBaseLoadChecker(aFirstRunCapacity,
-                aLocationSelector, aUnloadDurations);
+                aLocationSelector, aBaseServiceTimeProvider, aUnloadDurations);
         destinationBaseLoadChecker.initUnloadVolumes(aMinUnloadPointIndex, aDailyVolumes);
         insertionListeners.addListener(new InsertionStartsListener() {
             @Override
