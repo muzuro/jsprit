@@ -543,7 +543,7 @@ public class DestinationBaseTest {
             }
         }
         
-//        Assert.assertTrue(solution.getUnassignedJobs().isEmpty());
+        Assert.assertTrue(solution.getUnassignedJobs().isEmpty());
         Assert.assertTrue(zeroIndexLocationCapacity.isLessOrEqual(limitCapacity));
 //        Assert.assertTrue(zeroIndexLocationCapacity.isGreater(Capacity.Builder.newInstance().build()));
     }

@@ -119,9 +119,11 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
 
     private Map<VehicleRoute, Object[][]> vehicle_dependent_route_state_map;
     
-    private Map<VehicleRoute, Object[][]> runStateMap; 
-
+    private Object[][][] runsStates;
+    
     private VehicleRoutingProblem vrp;
+
+    private int maxVehicleIndex;
 
     int getMaxIndexOfVehicleTypeIdentifiers() {
         return nuVehicleTypeKeys;
@@ -174,7 +176,9 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
 //        vehicle_dependent_route_states = new Object[nuActivities][nuVehicleTypeKeys][initialStateArrayLength];
         route_state_map = new HashMap<VehicleRoute, Object[]>();
         vehicle_dependent_route_state_map = new HashMap<VehicleRoute, Object[][]>();
-        runStateMap = new HashMap<VehicleRoute, Object[][]>();
+        
+        maxVehicleIndex = vrp.getVehicles().stream().mapToInt(v->v.getIndex()).max().getAsInt() + 1;
+        runsStates = new Object[maxVehicleIndex][2000][10];
     }
     
     public DestinationBaseLoadChecker initDestinationBaseLoadChecker(Capacity aFirstRunCapacity,
@@ -197,13 +201,7 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
         DestinationBaseLoadChecker destinationBaseLoadChecker = initDestinationBaseLoadChecker(aFirstRunCapacity,
                 aLocationSelector, aBaseServiceTimeProvider, aUnloadDurations);
         destinationBaseLoadChecker.initUnloadVolumes(aMinUnloadPointIndex, aDailyVolumes);
-        insertionListeners.addListener(new InsertionStartsListener() {
-            @Override
-            public void informInsertionStarts(Collection<VehicleRoute> aVehicleRoutes,
-                    Collection<Job> aUnassignedJobs) {
-                vrp.getDestinationBaseLoadChecker().refreshUnloadLocation(aVehicleRoutes);
-            }
-        });
+        
         UpdateUnload uubv = new UpdateUnload(this, destinationBaseLoadChecker);
         addInsertionListener(uubv);
     }
@@ -253,7 +251,7 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
         problemStates_.clear();
         route_state_map.clear();
         vehicle_dependent_route_state_map.clear();
-        runStateMap.clear();
+        runsStates = new Object[maxVehicleIndex][2000][10];
     }
 
     private void fill_threeDimArr(Object[][][] states, Object o) {
@@ -375,28 +373,17 @@ public class StateManager implements RouteAndActivityStateGetter, IterationStart
     @Override
     public <T> T getRunState(VehicleRoute route, int runNum, StateId stateId, Class<T> type, T defaultValue) {
         if (route.isEmpty()) return defaultValue;
-        if (runStateMap.containsKey(route)) {
-            Object[] runStates = runStateMap.get(route)[runNum];
-            T cast = type.cast(runStates[stateId.getIndex()]);
-            return cast == null ? defaultValue : cast;
-        }
-        return defaultValue;
+        Object[] runStates = runsStates[route.getVehicle().getIndex()][runNum];
+        T cast = (T) runStates[stateId.getIndex()];
+        return cast == null ? defaultValue : cast;
     }
     
     public <T> T putRunState(VehicleRoute route, int runNum, StateId stateId, T value) {
         if (route.isEmpty() || value == null) {
             return null;
         }
-        T oldVal = null;
-        if (runStateMap.containsKey(route)) {
-            Object[] runStates = runStateMap.get(route)[runNum];
-            oldVal = (T) runStates[stateId.getIndex()];
-            runStates[stateId.getIndex()] = value;
-        } else {
-            Object[][] routeState = new Object[100][10];
-            runStateMap.put(route, routeState);
-            routeState[runNum][stateId.getIndex()] = value;
-        }
+        T oldVal = (T) runsStates[route.getVehicle().getIndex()][runNum][stateId.getIndex()];
+        runsStates[route.getVehicle().getIndex()][runNum][stateId.getIndex()] = value;
         return oldVal;
     }
 

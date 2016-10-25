@@ -1,8 +1,9 @@
 package jsprit.core.algorithm.state;
 
+import org.apache.commons.lang.math.IntRange;
+
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -78,20 +79,24 @@ public class DestinationBaseLoadChecker {
         if (Objects.isNull(runCount)) {
             runCount = 0;
         }
-        Map<Location, LocationAssignment> map = new HashMap<>();
+        Set<LocationAssignment> result = new HashSet<>();
+        IntRange ir = baseLocationProvider.getUnloadLocationIndexRange();
+        int size = ir.getMaximumInteger() - ir.getMinimumInteger() + 1;
+        LocationAssignment[] array = new LocationAssignment[size];
         for (int i = 0; i < runCount; i++) {
             Location runUnloadLocation = stateManager.getRunState(route, i,
                     InternalStates.DestinationBase.RUN_UNLOAD_LOCATION, Location.class, null);
-            
-            LocationAssignment locationAssignment = map.get(runUnloadLocation);
-            if (Objects.isNull(locationAssignment)) {                
+            int rulIndex = runUnloadLocation.getIndex() - ir.getMinimumInteger();
+            LocationAssignment locationAssignment = array[rulIndex];
+            if (Objects.isNull(locationAssignment)) {
                 locationAssignment = new LocationAssignment(runUnloadLocation, 1);
-                map.put(runUnloadLocation, locationAssignment);
+                array[rulIndex] = locationAssignment;
+                result.add(locationAssignment);
             } else {
                 locationAssignment.incrementCount();
             }
         }
-        return new HashSet<>(map.values());
+        return result;
     }
     
     public boolean isLoaded(Job aJob, VehicleRoute route) {
@@ -132,9 +137,9 @@ public class DestinationBaseLoadChecker {
     }
 
     public List<Location> getBaseLocations(Vehicle aVehicle, boolean aLastRun, int aRunNumber, int aLoadPercent,
-            Set<LocationAssignment> aAssignedLocations) {
+            Set<LocationAssignment> aAssignedLocations, TourActivity aPrevBaseAct, TourActivity aPostBaseAct) {
         return baseLocationProvider.getAvailableBaseLocations(aVehicle, aLastRun, aRunNumber, aLoadPercent,
-                aAssignedLocations);
+                aAssignedLocations, aPrevBaseAct, aPostBaseAct);
     }
     
     public Double getUnloadDuration(Vehicle aVehicle, Location aLocation, double aUnloadArriveTime) {
@@ -173,8 +178,8 @@ public class DestinationBaseLoadChecker {
         }
     }
 
-    public List<Location> getAllVehicleBaseLocations() {
-        return baseLocationProvider.getAllLocations();
+    public List<Location> getNoVehicleLocations(TourActivity aPrevBaseAct, TourActivity aPostBaseAct) {
+        return baseLocationProvider.getNoVehicleLocations(aPrevBaseAct, aPostBaseAct);
     }
 
     public void initUnloadVolumes(int aMinDailyIndex, Capacity[] aDailyCapacities) {
@@ -187,10 +192,12 @@ public class DestinationBaseLoadChecker {
         
     }
 
+    /**
+     * clear unload volumes and refill them from routes
+     * @param aVehicleRoutes
+     */
     public void refreshUnloadLocation(Collection<VehicleRoute> aVehicleRoutes) {
-        for (int i = 0; i < unloadVolumes.length; i++) {
-            unloadVolumes[i] = empty;
-        }
+        clearUnloadVolumes();
         for (VehicleRoute route: aVehicleRoutes) {
             int runNum = 0;
             Capacity runVolume = empty;
@@ -206,6 +213,15 @@ public class DestinationBaseLoadChecker {
                             ta.getLocation());
                 }
             }
+        }
+    }
+
+    /**
+     * mark current unload volume zero
+     */
+    public void clearUnloadVolumes() {
+        for (int i = 0; i < unloadVolumes.length; i++) {
+            unloadVolumes[i] = empty;
         }
     }
     

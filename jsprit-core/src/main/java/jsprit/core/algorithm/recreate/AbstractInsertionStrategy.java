@@ -114,9 +114,15 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
         for (Job job : unassignedJobs) {
             notBases.add(job);
         }
-        vrp.getDestinationBaseLoadChecker().refreshFreeJobs(vehicleRoutes);
+        
+        //clear unload locations and volumes before inserting
+        vrp.getDestinationBaseLoadChecker().refreshUnloadLocation(vehicleRoutes);
         Collection<Job> badJobs = insertUnassignedJobs(vehicleRoutes, notBases);
-        insertionsListeners.informInsertionEndsListeners(vehicleRoutes);
+        insertionsListeners.informInsertionEndsListeners(vehicleRoutes);        
+        vrp.getDestinationBaseLoadChecker().refreshFreeJobs(vehicleRoutes);
+        
+        //clear unload locations and volumes before optimizing bases
+        vrp.getDestinationBaseLoadChecker().refreshUnloadLocation(vehicleRoutes);
         vehicleRoutes.forEach(route->{
             optimizeBases(route);
             new RouteActivityVisitor().addActivityVisitor(new UpdateActivityTimes(vrp.getTransportCosts(),
@@ -163,10 +169,13 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
                 base.setLocation(selected.getKey());
                 base.setServiceDuration(selected.getValue());
                 
+                
                 LocationAssignment locationAssignment = assignedMap.getOrDefault(selected.getKey(),
                         new LocationAssignment(selected.getKey()));
                 locationAssignment.incrementCount();
                 assignedMap.put(selected.getKey(), locationAssignment);
+                vrp.getDestinationBaseLoadChecker().addUnloadVolume(selected.getKey(), runLoad);
+                runLoad = Capacity.Builder.newInstance().build();
             }
             
             //calculating next arrive time
@@ -206,7 +215,7 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
         int runLoadPercent = (aRunLoad.get(0) / vehicleCapacity.get(0)) * 100; 
         
         List<Location> allowedUnloadLocations = destinationBaseLoadChecker.getBaseLocations(aRoute.getVehicle(),
-                lastRun, aRunNumber, runLoadPercent, aAssignedLocations);
+                lastRun, aRunNumber, runLoadPercent, aAssignedLocations, prev, next);
         for (Location possibleBaseLocation : allowedUnloadLocations) {
             double toBase = transportCosts.getTransportCost(prev.getLocation(),
                     possibleBaseLocation, prev.getEndTime(), aRoute.getDriver(), aRoute.getVehicle());
@@ -218,7 +227,7 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
             double totalCost = toBase + fromBase;
             if (totalCost < min && destinationBaseLoadChecker.isLocationDailyLoadable(possibleBaseLocation, aRunLoad)) {
                 bestBaseLocation = possibleBaseLocation;
-                min = totalCost; 
+                min = totalCost;
                 bestBaseServiceTime = baseProceedTime;
             }
         }
@@ -235,10 +244,16 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
     public abstract Collection<Job> insertUnassignedJobs(Collection<VehicleRoute> vehicleRoutes, Collection<Job> unassignedJobs);
 
     protected void markRequiredRoutes(Collection<VehicleRoute> routes, List<Job> jobs) {
-        DestinationBaseLoadChecker destinationBaseLoadChecker = vrp.getDestinationBaseLoadChecker();
-        for (VehicleRoute route : routes) {
-            boolean anySuitable = jobs.stream().anyMatch(j->!destinationBaseLoadChecker.isLoaded(j, route));
-            destinationBaseLoadChecker.markBaseRequired(route, !anySuitable);
+        Iterator<Job> unassignedJobIterator = jobs.iterator();
+        if (unassignedJobIterator.hasNext()) {                
+            Job minimalCapacityJob = unassignedJobIterator.next();
+            while (unassignedJobIterator.hasNext()) {
+                Job next = unassignedJobIterator.next();
+                if (minimalCapacityJob.getSize().isGreater(next.getSize())) {
+                    minimalCapacityJob = next;
+                }
+            }
+            markRequiredRoutes(routes, minimalCapacityJob);
         }
     }
     

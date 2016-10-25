@@ -311,18 +311,18 @@ final class DestinationInsertionCalculator implements JobInsertionCostsCalculato
         Vehicle vehicle = currentRoute.getVehicle();
         if (vehicle instanceof NoVehicle) {
             //later base location will be obtained from vehicle(while base optimization jsprit.core.algorithm.recreate.AbstractInsertionStrategy.optimizeBases(VehicleRoute))
-            baseLocations = destinationBaseLoadChecker.getAllVehicleBaseLocations();
+            baseLocations = destinationBaseLoadChecker.getNoVehicleLocations(aPrevBaseAct, aPostBaseAct);
         } else {
             Integer runCount = destinationBaseLoadChecker.getRunCount(currentRoute);
             if (Objects.isNull(runCount)) {
                 //null runCount means empty route
-                baseLocations = destinationBaseLoadChecker.getBaseLocations(vehicle, true, 0, 0, Collections.emptySet());
+                baseLocations = destinationBaseLoadChecker.getBaseLocations(vehicle, true, 0, 0, Collections.emptySet(), aPrevBaseAct, aPostBaseAct);
             } else {                
                 int lastRunNumber = runCount - 1;
                 int loadPercent = destinationBaseLoadChecker.getLoadPercent(currentRoute, lastRunNumber);
                 Set<LocationAssignment> locationAssignments = destinationBaseLoadChecker.getLocationAssignments(currentRoute);
                 baseLocations = destinationBaseLoadChecker.getBaseLocations(vehicle, true, lastRunNumber, loadPercent,
-                        locationAssignments);
+                        locationAssignments, aPrevBaseAct, aPostBaseAct);
             }
         }
         Double min = Double.MAX_VALUE;
