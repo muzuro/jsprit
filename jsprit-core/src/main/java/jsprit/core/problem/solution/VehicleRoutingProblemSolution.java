@@ -48,6 +48,8 @@ public class VehicleRoutingProblemSolution {
     
     private int iterationNum;
 
+    private String strategyInfo;
+
     private VehicleRoutingProblemSolution(VehicleRoutingProblemSolution solution) {
         routes = new ArrayList<VehicleRoute>();
         for (VehicleRoute r : solution.getRoutes()) {
@@ -132,4 +134,13 @@ public class VehicleRoutingProblemSolution {
     public void setIterationNum(int aIterationNum) {
         iterationNum = aIterationNum;
     }
+
+    public String getStrategyInfo() {
+        return strategyInfo;
+    }
+    
+    public void setStrategyInfo(String aStrategyInfo) {
+        strategyInfo = aStrategyInfo;
+    }
+    
 }

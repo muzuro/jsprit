@@ -1,6 +1,8 @@
 package jsprit.core.algorithm.state;
 
 import org.apache.commons.lang.math.IntRange;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -27,6 +29,8 @@ import jsprit.core.problem.vehicle.Vehicle;
 
 public class DestinationBaseLoadChecker {
 
+    private final static Logger logger = LogManager.getLogger();
+    
     private final StateManager stateManager;
 
     private final Capacity defaultValue;
@@ -65,6 +69,10 @@ public class DestinationBaseLoadChecker {
         defaultUnloadDuration = unloadDuration.values().iterator().next();
         basePool = new ArrayList<>();
         freeBases = new HashSet<>();
+    }
+    
+    public BaseLocationProvider getBaseLocationProvider() {
+        return baseLocationProvider;
     }
     
     public int getLoadPercent(VehicleRoute route, int aRunNumber) {
@@ -154,7 +162,7 @@ public class DestinationBaseLoadChecker {
                     .build());
         }
         aVrp.setNuActivities(index);
-        freeBases.addAll(basePool);
+        basePool.forEach(b->freeBases.add(Base.copyOf(b)));
     }
 
     public Base findBaseToInsert() {
@@ -171,8 +179,8 @@ public class DestinationBaseLoadChecker {
         return freeBases.add(aBase);
     }
 
-    public void refreshFreeJobs(Collection<VehicleRoute> aVehicleRoutes) {
-        freeBases = new HashSet<>(basePool);
+    public void refreshFreeBases(Collection<VehicleRoute> aVehicleRoutes) {
+        basePool.forEach(b->freeBases.add(Base.copyOf(b)));
         for (VehicleRoute route: aVehicleRoutes) {
             route.getTourActivities().getJobs().stream().filter(j->j instanceof Base).map(j->(Base)j).forEach(freeBases::remove);
         }
@@ -244,6 +252,10 @@ public class DestinationBaseLoadChecker {
                 unloadVolumes[findDailyVolumeIndex(aLocation)]);
         Capacity dailyCapacity = dailyCapacities[findDailyVolumeIndex(aLocation)];
         return dailyCapacity == null || possibleUnloadCapacity.isLessOrEqual(dailyCapacity);
+    }
+    
+    public Capacity findDailyCapacity(Location aLocation) {
+        return dailyCapacities[findDailyVolumeIndex(aLocation)];
     }
     
 }

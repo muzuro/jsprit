@@ -16,20 +16,35 @@
  ******************************************************************************/
 package jsprit.core.algorithm;
 
-import jsprit.core.algorithm.SearchStrategy.DiscoveredSolution;
-import jsprit.core.algorithm.listener.*;
-import jsprit.core.algorithm.termination.PrematureAlgorithmTermination;
-import jsprit.core.problem.VehicleRoutingProblem;
-import jsprit.core.problem.job.Job;
-import jsprit.core.problem.solution.VehicleRoutingProblemSolution;
-import jsprit.core.problem.solution.route.VehicleRoute;
-import jsprit.core.problem.solution.route.activity.TourActivity;
-import jsprit.core.util.Solutions;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import jsprit.core.algorithm.SearchStrategy.DiscoveredSolution;
+import jsprit.core.algorithm.listener.AlgorithmEndsListener;
+import jsprit.core.algorithm.listener.AlgorithmStartsListener;
+import jsprit.core.algorithm.listener.IterationEndsListener;
+import jsprit.core.algorithm.listener.IterationStartsListener;
+import jsprit.core.algorithm.listener.SearchStrategyListener;
+import jsprit.core.algorithm.listener.SearchStrategyModuleListener;
+import jsprit.core.algorithm.listener.VehicleRoutingAlgorithmListener;
+import jsprit.core.algorithm.listener.VehicleRoutingAlgorithmListeners;
+import jsprit.core.algorithm.termination.PrematureAlgorithmTermination;
+import jsprit.core.problem.VehicleRoutingProblem;
+import jsprit.core.problem.job.Base;
+import jsprit.core.problem.job.Job;
+import jsprit.core.problem.solution.VehicleRoutingProblemSolution;
+import jsprit.core.problem.solution.route.VehicleRoute;
+import jsprit.core.problem.solution.route.activity.BaseService;
+import jsprit.core.problem.solution.route.activity.DestinationService;
+import jsprit.core.problem.solution.route.activity.TourActivity;
+import jsprit.core.util.Solutions;
 
 
 /**
@@ -204,12 +219,8 @@ public class VehicleRoutingAlgorithm {
             SearchStrategy strategy = searchStrategyManager.getRandomStrategy();
             DiscoveredSolution discoveredSolution = strategy.run(problem, solutions);
             discoveredSolution.getSolution().setIterationNum(i);
-            if (logger.isDebugEnabled()) {                
-//                VehicleRoutingProblemSolution solution = discoveredSolution.getSolution();
-//                VehicleRoute route = solution.getRoutes().iterator().next();
-//                logger.debug("{} - {}", solution.getCost(), route.prettyPrintActivites());
-            }
-            
+            discoveredSolution.getSolution().setStrategyInfo(String.format("id %s, %s", strategy.getId(), strategy.toString()));
+         
             if (logger.isTraceEnabled()) log(discoveredSolution);
             memorizeIfBestEver(discoveredSolution);
             selectedStrategy(discoveredSolution, problem, solutions);
@@ -225,6 +236,32 @@ public class VehicleRoutingAlgorithm {
         algorithmEnds(problem, solutions);
         logger.info("took {} seconds", ((System.currentTimeMillis() - now) / 1000.0));
         return solutions;
+    }
+    
+    public String printSolutionSummary(VehicleRoutingProblemSolution solution) {
+        StringBuilder sb = new StringBuilder("unassigned: ").append(solution.getUnassignedJobs().size());
+        for (VehicleRoute vr: solution.getRoutes()) {
+            sb.append(" ").append(vr.getVehicle().getId()).append(":").append(vr.getTourActivities().getActivities().size());
+        }
+        return sb.toString();
+    }
+    
+    private Map<Integer, Integer> calculateFillMap(VehicleRoutingProblemSolution bestSolution) {
+        Collection<VehicleRoute> vehicleRoutes = bestSolution.getRoutes();
+        Map<Integer, Integer> fill = new HashMap<>();
+        Integer runLoad = 0;
+        for (VehicleRoute vr: vehicleRoutes) {
+            for (TourActivity ta : vr.getTourActivities().getActivities()) {
+                if (ta instanceof DestinationService) {
+                    runLoad += ta.getSize().get(0);
+                } else if (ta instanceof BaseService) {
+                    Integer old = fill.getOrDefault(ta.getLocation().getIndex(), 0);
+                    fill.put(ta.getLocation().getIndex(), runLoad + old);
+                    runLoad = 0;
+                }
+            }
+        }
+        return fill;
     }
 
     private void addBestEver(Collection<VehicleRoutingProblemSolution> solutions) {
@@ -264,12 +301,42 @@ public class VehicleRoutingAlgorithm {
 
 
     private void memorizeIfBestEver(DiscoveredSolution discoveredSolution) {
-        if (discoveredSolution == null) return;
-        if (bestEver == null) bestEver = discoveredSolution.getSolution();
-        else if (discoveredSolution.getSolution().getCost() < bestEver.getCost())
+        if (discoveredSolution == null) {
+            return;
+        }
+        if (bestEver == null || discoveredSolution.getSolution().getCost() < bestEver.getCost()) {
             bestEver = discoveredSolution.getSolution();
+        }
     }
+    
+    public static class BaseIterator implements Iterator<Base> {
 
+        private Iterator<Base> iterator;
+
+        public BaseIterator(VehicleRoutingProblemSolution vrps) {
+            List<Base> toIterate = new ArrayList<>();
+            for (VehicleRoute vr: vrps.getRoutes()) {
+                for (TourActivity ta : vr.getActivities()) {
+                    if (ta instanceof BaseService) {
+                        Base b = (Base) ((BaseService) ta).getJob();
+                        toIterate.add(b);
+                    }
+                }
+            }
+            iterator = toIterate.iterator();
+        }
+        
+        @Override
+        public boolean hasNext() {
+            return iterator.hasNext();
+        }
+
+        @Override
+        public Base next() {
+            return iterator.next();
+        }
+        
+    }
 
     private void selectedStrategy(DiscoveredSolution discoveredSolution, VehicleRoutingProblem problem, Collection<VehicleRoutingProblemSolution> solutions) {
         algoListeners.selectedStrategy(discoveredSolution, problem, solutions);

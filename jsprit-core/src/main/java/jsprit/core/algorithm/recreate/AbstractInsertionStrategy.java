@@ -115,16 +115,17 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
             notBases.add(job);
         }
         
-        //clear unload locations and volumes before inserting
+        //clear and recalculate unload locations and volumes before inserting
         vrp.getDestinationBaseLoadChecker().refreshUnloadLocation(vehicleRoutes);
+        vrp.getDestinationBaseLoadChecker().refreshFreeBases(vehicleRoutes);
         Collection<Job> badJobs = insertUnassignedJobs(vehicleRoutes, notBases);
         insertionsListeners.informInsertionEndsListeners(vehicleRoutes);        
-        vrp.getDestinationBaseLoadChecker().refreshFreeJobs(vehicleRoutes);
         
         //clear unload locations and volumes before optimizing bases
-        vrp.getDestinationBaseLoadChecker().refreshUnloadLocation(vehicleRoutes);
+        vrp.getDestinationBaseLoadChecker().clearUnloadVolumes();
+
         vehicleRoutes.forEach(route->{
-            optimizeBases(route);
+            badJobs.addAll(optimizeBases(route));
             new RouteActivityVisitor().addActivityVisitor(new UpdateActivityTimes(vrp.getTransportCosts(),
                     ActivityPolicy.AS_SOON_AS_ARRIVED)).visit(route);
         });
@@ -132,7 +133,8 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
         return badJobs;
     }
     
-    public void optimizeBases(VehicleRoute aRoute) {
+    public Collection<Job> optimizeBases(VehicleRoute aRoute) {
+        List<Job> badJobs = new ArrayList<>();
         Vehicle vehicle = aRoute.getVehicle();
         Start start = new Start(vehicle.getStartLocation(), vehicle.getEarliestDeparture(), Double.MAX_VALUE);
         End end = new End(vehicle.getEndLocation(), 0.0, vehicle.getLatestArrival());
@@ -147,6 +149,13 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
         //we should calclute arrive time becouse it could be changed by best base calculation
         double currentArriveTime = current.getArrTime();
         
+        //store this values if points will be deleted from route. 
+        Double onDeletePrevBaseArriveTime = null;
+        TourActivity onDeletePrevBase = null;
+        
+        List<TourActivity> badActivities = new ArrayList<>();
+        List<TourActivity> runDestinations = new ArrayList<>();
+        
         Map<Location, LocationAssignment> assignedMap = new HashMap<>();
         while (!routeEnd) {
             if (iterator.hasNext()) {
@@ -156,6 +165,7 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
                 routeEnd = true;
             }
             if (current instanceof DestinationService) {
+                runDestinations.add(current);
                 runLoad = Capacity.addup(runLoad, current.getSize());
             } else if (current instanceof BaseService) {
                 if (Objects.isNull(prev) || Objects.isNull(current)) {
@@ -164,31 +174,60 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
                 
                 Pair<Location, Double> selected = findBestLocation(aRoute, prev, next, runLoad, current,
                         runNumber++, new HashSet(assignedMap.keySet()), currentArriveTime);
+                if (Objects.isNull(selected)) {
+                    DestinationService prevDest = (DestinationService) prev;
+                    badJobs.add(prevDest.getJob());
+                    
+                    badActivities.addAll(runDestinations);
+                    badActivities.add(current);
+                    
+                    currentArriveTime = calculateArriveTime(onDeletePrevBaseArriveTime, onDeletePrevBase, next, aRoute);
+                    prev = onDeletePrevBase;
+                    
+                    current = next;
+                    runLoad = Capacity.Builder.newInstance().build();
+                    continue;
+                }
+                runDestinations = new ArrayList<>();
                 BaseService baseService = (BaseService) current;
                 Base base = ((Base) baseService.getJob());
-                base.setLocation(selected.getKey());
+                Location selectedLocation = selected.getKey();
+                base.setLocation(selectedLocation);
                 base.setServiceDuration(selected.getValue());
                 
-                
-                LocationAssignment locationAssignment = assignedMap.getOrDefault(selected.getKey(),
-                        new LocationAssignment(selected.getKey()));
+                LocationAssignment locationAssignment = assignedMap.getOrDefault(selectedLocation,
+                        new LocationAssignment(selectedLocation));
                 locationAssignment.incrementCount();
-                assignedMap.put(selected.getKey(), locationAssignment);
-                vrp.getDestinationBaseLoadChecker().addUnloadVolume(selected.getKey(), runLoad);
+                assignedMap.put(selectedLocation, locationAssignment);
+                vrp.getDestinationBaseLoadChecker().addUnloadVolume(selectedLocation, runLoad);
                 runLoad = Capacity.Builder.newInstance().build();
             }
             
-            //calculating next arrive time
-            double departureTime = currentArriveTime + current.getOperationTime();
-            double transportTime = vrp.getTransportCosts().getTransportTime(current.getLocation(), next.getLocation(),
-                    departureTime, aRoute.getDriver(), aRoute.getVehicle());
-            double nextArriveTime = departureTime + transportTime;
-            
             //prepare to next iteration
-            currentArriveTime = nextArriveTime;
+            if (prev instanceof BaseService) {
+                onDeletePrevBaseArriveTime = currentArriveTime;
+                onDeletePrevBase = prev;
+            }
+            currentArriveTime = calculateArriveTime(currentArriveTime, current, next, aRoute);
             prev = current;
             current = next;
         }
+        for (TourActivity ba : badActivities) {
+            aRoute.getTourActivities().removeActivity(ba);
+        }
+        return badJobs;
+    }
+    
+    
+    private double calculateArriveTime(double currentArriveTime, TourActivity current, TourActivity next,
+            VehicleRoute aRoute) {
+        double departureTime = currentArriveTime + current.getOperationTime();
+        double transportTime = vrp.getTransportCosts().getTransportTime(current.getLocation(), next.getLocation(),
+                departureTime, aRoute.getDriver(), aRoute.getVehicle());
+        double nextArriveTime = departureTime + transportTime;
+        
+        //prepare to next iteration
+        return nextArriveTime;
     }
     
     /**
@@ -199,7 +238,7 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
      * @param aCurrent
      * @param aRunNumber - run number, starts from 0
      * @param aAssignedLocations 
-     * @return
+     * @return base location and service time, null if not found any
      */
     private Pair<Location, Double> findBestLocation(VehicleRoute aRoute, TourActivity prev, TourActivity next,
             Capacity aRunLoad, TourActivity aCurrent, int aRunNumber, Set<LocationAssignment> aAssignedLocations,
@@ -212,7 +251,8 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
         boolean lastRun = next instanceof End;
         
         Capacity vehicleCapacity = aRoute.getVehicle().getType().getCapacityDimensions();
-        int runLoadPercent = (aRunLoad.get(0) / vehicleCapacity.get(0)) * 100; 
+        float fillFactor = (float) aRunLoad.get(0) / vehicleCapacity.get(0);
+        int runLoadPercent = (int) (fillFactor * 100);
         
         List<Location> allowedUnloadLocations = destinationBaseLoadChecker.getBaseLocations(aRoute.getVehicle(),
                 lastRun, aRunNumber, runLoadPercent, aAssignedLocations, prev, next);
@@ -234,10 +274,7 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
         if (Objects.nonNull(bestBaseLocation)) {
             return Pair.create(bestBaseLocation, bestBaseServiceTime);
         } else {
-            //rerequest base service time, becouse after insert time could be shifted
-            Double baseProceedTime = destinationBaseLoadChecker.getUnloadDuration(aRoute.getVehicle(),
-                    aCurrent.getLocation(), aCurrent.getArrTime());
-            return Pair.create(aCurrent.getLocation(), baseProceedTime);
+            return null;
         }
     }
 
