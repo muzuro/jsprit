@@ -241,6 +241,9 @@ public class DestinationBaseLoadChecker {
     }
 
     private int findDailyVolumeIndex(Location location) {
+        if (Objects.isNull(location)) {
+            logger.error("wtf");
+        }
         return location.getIndex() - minDailyIndex;
     }
 

@@ -515,30 +515,27 @@ public class Jsprit {
 
     private void handleExecutorShutdown(VehicleRoutingAlgorithm vra) {
         if (setupExecutorInternally) {
-            vra.addListener(new AlgorithmEndsListener() {
-
+            class ShutdownHook extends Thread {
+                private ExecutorService executorService;
+                public ShutdownHook(ExecutorService aExecutorService) {
+                    executorService = aExecutorService;
+                }
                 @Override
-                public void informAlgorithmEnds(VehicleRoutingProblem problem, Collection<VehicleRoutingProblemSolution> solutions) {
-                    es.shutdown();
-                }
-
-            });
-        }
-        if (es != null) {
-            Thread hook = new Thread() {
                 public void run() {
-                    if (!es.isShutdown()) {
+                    if (!executorService.isShutdown()) {
                         System.err.println("shutdowHook shuts down executorService");
-                        es.shutdown();
-                    }
+                        executorService.shutdown();
+                    } 
                 }
-            };
-            Runtime.getRuntime().addShutdownHook(hook);
+            }
+            ShutdownHook shutdownHook = new ShutdownHook(es);
+            Runtime.getRuntime().addShutdownHook(shutdownHook);
             vra.addListener(new AlgorithmEndsListener() {
                 @Override
                 public void informAlgorithmEnds(VehicleRoutingProblem aProblem,
                         Collection<VehicleRoutingProblemSolution> aSolutions) {
-                    Runtime.getRuntime().removeShutdownHook(hook);
+                    es.shutdown();
+                    Runtime.getRuntime().removeShutdownHook(shutdownHook);
                 }
             });
         }

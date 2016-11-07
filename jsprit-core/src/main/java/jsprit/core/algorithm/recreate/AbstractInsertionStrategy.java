@@ -150,8 +150,8 @@ public abstract class AbstractInsertionStrategy implements InsertionStrategy {
         double currentArriveTime = current.getArrTime();
         
         //store this values if points will be deleted from route. 
-        Double onDeletePrevBaseArriveTime = null;
-        TourActivity onDeletePrevBase = null;
+        Double onDeletePrevBaseArriveTime = vehicle.getEarliestDeparture();
+        TourActivity onDeletePrevBase = start;
         
         List<TourActivity> badActivities = new ArrayList<>();
         List<TourActivity> runDestinations = new ArrayList<>();

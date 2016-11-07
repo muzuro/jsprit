@@ -101,9 +101,13 @@ final class VehicleTypeDependentJobInsertionCalculator implements JobInsertionCo
         Collection<Vehicle> relevantVehicles = new ArrayList<Vehicle>();
         if (!(selectedVehicle instanceof NoVehicle)) {
             relevantVehicles.add(selectedVehicle);
-            if (vehicleSwitchAllowed && !isVehicleWithInitialRoute(selectedVehicle)) {
-                relevantVehicles.addAll(fleetManager.getAvailableVehicles(selectedVehicle));
-            }
+            
+            // turn off vehicle swithc becouse in state manager route state arrays indexed by vehicle index
+             
+//            if (vehicleSwitchAllowed && !isVehicleWithInitialRoute(selectedVehicle)) {
+//                relevantVehicles.addAll(fleetManager.getAvailableVehicles(selectedVehicle));
+//            }
+
         } else { //if no vehicle has been assigned, i.e. it is an empty route
             relevantVehicles.addAll(fleetManager.getAvailableVehicles());
         }
